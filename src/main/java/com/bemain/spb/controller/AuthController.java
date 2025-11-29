@@ -26,7 +26,16 @@ public class AuthController {
     // 로그인: POST /api/auth/login
     @PostMapping("/login")
     public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest request) {
-        TokenResponse token = authService.login(request);
-        return ResponseEntity.ok(token);
+        try {
+            TokenResponse token = authService.login(request);
+            return ResponseEntity.ok(token);
+        } catch (Exception e) {
+            // 🚨 서버 로그에 에러의 진짜 원인을 출력합니다 (BadCredentialsException인지 확인)
+            e.printStackTrace(); 
+            
+            // Postman 응답으로도 원인을 보여줍니다.
+            return ResponseEntity.status(403)
+                    .body("로그인 실패 원인: " + e.getClass().getSimpleName() + " -> " + e.getMessage());
+        }
     }
 }
