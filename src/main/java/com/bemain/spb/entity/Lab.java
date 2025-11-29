@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.annotation.CreatedDate;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter @Setter
@@ -33,7 +38,14 @@ public class Lab {
     @Column(nullable = false)
     private String deployUrl; // 배포된 실제 URL (http://...)
 
+    @Column(columnDefinition = "boolean default true")
     private boolean isActive = true; // 활성화 여부 (0/1)
+
+    @OneToMany(mappedBy = "lab")
+    private List<Report> reports = new ArrayList<>();
+
+    @CreatedDate
+    private LocalDateTime createdAt;
 
     public Lab(String title, String description, String deployUrl, User developer, Images image) {
         this.title = title;

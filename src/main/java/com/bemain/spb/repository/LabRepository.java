@@ -17,14 +17,13 @@ public interface LabRepository extends JpaRepository<Lab, Long> {
     // SQL: SELECT * FROM lab WHERE developer_id = ?
     List<Lab> findByDeveloperId(Long developerId);
 
-    // [핵심] 랩 정보와 리포트 개수를 한 번에 가져오는 쿼리
-    // r.id를 count하되, 리포트가 없으면 0이 나옴 (LEFT JOIN)
+    // 랩 정보와 리포트 개수를 한 번에 가져오는 쿼리
     @Query("SELECT new com.bemain.spb.dto.lab.LabSummaryResponse(" +
             "  l.id, l.title, l.developer.nickname, l.image.title, COUNT(r) " +
             ") " +
             "FROM Lab l " +
-            "LEFT JOIN Report r ON r.lab = l " +
-            "WHERE l.isActive = true " + // 활성화된 랩만 보기
+            "LEFT JOIN l.reports r " +  // <--- 여기가 핵심 변경 포인트!
+            "WHERE l.isActive = true " +
             "GROUP BY l.id, l.title, l.developer.nickname, l.image.title " +
             "ORDER BY l.createdAt DESC")
     List<LabSummaryResponse> findAllActiveLabsWithStats();
