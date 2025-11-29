@@ -8,7 +8,7 @@ import lombok.Setter;
 @Entity
 @Getter @Setter
 @NoArgsConstructor
-public class Challenge {
+public class Images {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,7 +26,7 @@ public class Challenge {
     @Column(length = 50)
     private String type;
 
-    public Challenge(String title, String imageUrl, String description, String type) {
+    public Images(String title, String imageUrl, String description, String type) {
         this.title = title;
         this.imageUrl = imageUrl;
         this.description = description;
