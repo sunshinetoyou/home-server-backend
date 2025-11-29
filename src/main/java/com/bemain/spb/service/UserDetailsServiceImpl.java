@@ -24,6 +24,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
                 .username(user.getUsername())
                 .password(user.getPassword())
                 .authorities(user.getRole().name()) // Enum Role을 권한으로 변환
+                .accountExpired(false)      // 계정 만료 안됨
+                .accountLocked(false)       // 계정 잠기지 않음
+                .credentialsExpired(false)  // 비번 만료 안됨
+                .disabled(false)            // 계정 활성화 됨 (disabled가 false여야 활성)
                 .build();
     }
 }
