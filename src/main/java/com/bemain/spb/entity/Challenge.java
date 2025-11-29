@@ -23,9 +23,13 @@ public class Challenge {
     @Column(columnDefinition = "TEXT")
     private String description; // 설명 및 규칙
 
-    public Challenge(String title, String imageUrl, String description) {
+    @Column(length = 50)
+    private String type;
+
+    public Challenge(String title, String imageUrl, String description, String type) {
         this.title = title;
         this.imageUrl = imageUrl;
         this.description = description;
+        this.type = type;
     }
 }
