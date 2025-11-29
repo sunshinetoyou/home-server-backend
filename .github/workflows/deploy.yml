@@ -6,7 +6,7 @@ on:
 
 env:
   # 이미지 이름: 소문자로 작성 (ghcr.io/아이디/레포명)
-  IMAGE_NAME: ghcr.io/your_github_id/home-server-backend
+  IMAGE_NAME: ghcr.io/sunshinetoyou/home-server-backend
   TAG: latest
 
 jobs:
