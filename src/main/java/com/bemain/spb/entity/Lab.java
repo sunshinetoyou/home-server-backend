@@ -16,7 +16,7 @@ public class Lab {
 
     // 누가 만든 랩인지 연결
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "developer_id", nullable = false)
     private User developer;
 
     // 템플릿 이미지
