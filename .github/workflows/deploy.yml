@@ -20,8 +20,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        
-      # Gradle 실행 권한 부여 (가끔 권한 에러 방지)
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          # 👇 [1단계 적용] Gradle 캐싱 활성화
+          # 빌드할 때마다 라이브러리를 새로 다운로드받지 않고 저장해둡니다.
+          cache: 'gradle'
+
+      # Gradle 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -41,6 +50,10 @@ jobs:
           context: .
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+          # 👇 [2단계 적용] Docker 레이어 캐싱 활성화
+          # GitHub Actions 자체 캐시(gha)를 사용하여 빌드 속도를 높입니다.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # 2. K3s 배포 (우리 집 서버 Runner에서 실행)
   deploy:
@@ -55,8 +68,8 @@ jobs:
         run: |
           echo "🚀 Deploying Backend to K3s..."
           
-          # YAML 파일 적용
-          kubectl apply -f k8s/backend.yaml
+          # k8s 폴더 내 모든 설정 적용 (Ingress 포함)
+          kubectl apply -f k8s/
           
           # 이미지 강제 업데이트를 위해 재시작
           kubectl rollout restart deployment/backend-app
