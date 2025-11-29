@@ -14,6 +14,16 @@ public class Lab {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 누가 만든 랩인지 연결
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User developer;
+
+    // 템플릿 이미지
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "img_id", nullable = false)
+    private Images image;
+
     @Column(nullable = false)
     private String title; // 랩 제목
 
@@ -25,16 +35,12 @@ public class Lab {
 
     private boolean isActive = true; // 활성화 여부 (0/1)
 
-    // 누가 만든 랩인지 연결
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User developer;
-
-    public Lab(String title, String description, String deployUrl, User developer) {
+    public Lab(String title, String description, String deployUrl, User developer, Images image) {
         this.title = title;
+        this.developer = developer;
+        this.image = image;
         this.description = description;
         this.deployUrl = deployUrl;
-        this.developer = developer;
         this.isActive = true;
     }
 }
