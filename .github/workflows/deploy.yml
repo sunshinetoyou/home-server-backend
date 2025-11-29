@@ -27,12 +27,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           # 👇 [1단계 적용] Gradle 캐싱 활성화
-          # 빌드할 때마다 라이브러리를 새로 다운로드받지 않고 저장해둡니다.
+          # 이제 로봇이 직접 빌드하므로, 이 캐시 설정이 실제로 동작하여 라이브러리를 저장합니다!
           cache: 'gradle'
 
       # Gradle 실행 권한 부여
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      # 👇 [추가됨] 로봇이 직접 Gradle 빌드를 수행합니다.
+      # 이 단계가 끝나면 build/libs 폴더에 JAR 파일이 생성됩니다.
+      - name: Build with Gradle
+        run: ./gradlew clean bootJar -x test --no-daemon
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -51,7 +56,6 @@ jobs:
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
           # 👇 [2단계 적용] Docker 레이어 캐싱 활성화
-          # GitHub Actions 자체 캐시(gha)를 사용하여 빌드 속도를 높입니다.
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

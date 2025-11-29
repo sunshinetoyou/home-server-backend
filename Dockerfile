@@ -1,20 +1,11 @@
-# 1. 빌드 단계
-FROM gradle:8.5-jdk17 AS build
+# 1. 실행 단계 (가벼운 런타임 이미지 사용)
+FROM openjdk:17-jdk-slim
 WORKDIR /app
 
-# 소스 코드 복사
-COPY build.gradle settings.gradle ./
-COPY src ./src
+# 2. 밖에서 빌드된 JAR 파일을 복사 (경로 주의!)
+# GitHub Actions가 빌드한 파일은 build/libs 폴더에 생깁니다.
+COPY build/libs/*.jar app.jar
 
-# 빌드 실행
-RUN gradle clean build -x test --no-daemon
-
-# 2. 실행 단계 (여기를 변경했습니다! openjdk -> eclipse-temurin)
-FROM eclipse-temurin:17-jre
-WORKDIR /app
-
-# 빌드 단계에서 만들어진 jar 파일을 복사
-COPY --from=build /app/build/libs/*.jar app.jar
-
-# 실행 명령어
+# 3. 실행
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
