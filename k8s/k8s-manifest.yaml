@@ -21,7 +21,7 @@ spec:
       containers:
       - name: backend
         # 🌟 이미지 이름: 본인 ID로 변경 필수!
-        image: ghcr.io/YOUR_GITHUB_ID/home-server-backend:latest
+        image: ghcr.io/sunshinetoyou/home-server-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
