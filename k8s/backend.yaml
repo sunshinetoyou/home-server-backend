@@ -32,7 +32,7 @@ spec:
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
-              name: db-secret # K3s에 등록해둔 비밀번호 사용
+              name: db-secret
               key: user
         - name: SPRING_DATASOURCE_PASSWORD
           valueFrom:
@@ -42,6 +42,12 @@ spec:
         # JPA 설정 (초기엔 update로 설정)
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
           value: "update"
+        # 3. JWT 설정 (Secret에서 가져오도록 변경)
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: jwt-secret
 ---
 # 2. 서비스 설정 (Service)
 apiVersion: v1
