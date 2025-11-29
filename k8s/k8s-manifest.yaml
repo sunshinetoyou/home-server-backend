@@ -1,0 +1,58 @@
+# 파일위치: k8s/backend.yaml
+
+# 1. 배포 설정 (Deployment)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: backend
+        # 🌟 이미지 이름: 본인 ID로 변경 필수!
+        image: ghcr.io/YOUR_GITHUB_ID/home-server-backend:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        # --- DB 연결 설정 ---
+        - name: SPRING_DATASOURCE_URL
+          value: "jdbc:postgresql://postgres-service:5432/webntrDB" # 내부 DNS 사용
+        - name: SPRING_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: db-secret # K3s에 등록해둔 비밀번호 사용
+              key: user
+        - name: SPRING_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        # JPA 설정 (초기엔 update로 설정)
+        - name: SPRING_JPA_HIBERNATE_DDL_AUTO
+          value: "update"
+---
+# 2. 서비스 설정 (Service)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: default
+spec:
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

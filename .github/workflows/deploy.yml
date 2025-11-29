@@ -1,0 +1,65 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  # 이미지 이름: 소문자로 작성 (ghcr.io/아이디/레포명)
+  IMAGE_NAME: ghcr.io/your_github_id/home-server-backend
+  TAG: latest
+
+jobs:
+  # 1. 빌드 및 GHCR 업로드 (GitHub 클라우드에서 실행)
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      # Gradle 실행 권한 부여 (가끔 권한 에러 방지)
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
+
+  # 2. K3s 배포 (우리 집 서버 Runner에서 실행)
+  deploy:
+    needs: build-and-push
+    runs-on: self-hosted # 우리 집 서버
+
+    steps:
+      - name: Checkout code (YAML 파일 가져오기 위해)
+        uses: actions/checkout@v3
+
+      - name: Deploy to K3s
+        run: |
+          echo "🚀 Deploying Backend to K3s..."
+          
+          # YAML 파일 적용
+          kubectl apply -f k8s/backend.yaml
+          
+          # 이미지 강제 업데이트를 위해 재시작
+          kubectl rollout restart deployment/backend-app
+          
+          echo "✅ Deployment requested!"
+          kubectl rollout status deployment/backend-app
