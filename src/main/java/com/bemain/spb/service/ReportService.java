@@ -35,8 +35,8 @@ public class ReportService {
 
     // 1. 리포트 생성 (Issue Open)
     @Transactional
-    public Long createReport(Long userId, ReportCreateRequest request) {
-        User author = userRepository.findById(userId)
+    public Long createReport(String userName, ReportCreateRequest request) {
+        User author = userRepository.findByUsername(userName)
                 .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
 
         Lab lab = labRepository.findById(request.getLabId())

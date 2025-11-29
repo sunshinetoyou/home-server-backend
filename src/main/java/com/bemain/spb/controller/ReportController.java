@@ -34,8 +34,8 @@ public class ReportController {
             @RequestBody ReportCreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails // 로그인한 유저 정보
     ) {
-        Long userId = Long.parseLong(userDetails.getUsername());
-        Long reportId = reportService.createReport(userId, request);
+        String userName = userDetails.getUsername();
+        Long reportId = reportService.createReport(userName, request);
         return ResponseEntity.ok("리포트가 등록되었습니다. ID: " + reportId);
     }
 
