@@ -1,7 +1,10 @@
 package com.bemain.spb.repository;
 
+import com.bemain.spb.dto.lab.LabSummaryResponse;
 import com.bemain.spb.entity.Lab;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
 import java.util.List;
 
 public interface LabRepository extends JpaRepository<Lab, Long> {
@@ -13,4 +16,16 @@ public interface LabRepository extends JpaRepository<Lab, Long> {
     // 2. 특정 개발자가 만든 랩만 가져오기 (마이 페이지용)
     // SQL: SELECT * FROM lab WHERE developer_id = ?
     List<Lab> findByDeveloperId(Long developerId);
+
+    // [핵심] 랩 정보와 리포트 개수를 한 번에 가져오는 쿼리
+    // r.id를 count하되, 리포트가 없으면 0이 나옴 (LEFT JOIN)
+    @Query("SELECT new com.bemain.spb.dto.lab.LabSummaryResponse(" +
+            "  l.id, l.title, l.developer.nickname, l.image.title, COUNT(r) " +
+            ") " +
+            "FROM Lab l " +
+            "LEFT JOIN Report r ON r.lab = l " +
+            "WHERE l.isActive = true " + // 활성화된 랩만 보기
+            "GROUP BY l.id, l.title, l.developer.nickname, l.image.title " +
+            "ORDER BY l.createdAt DESC")
+    List<LabSummaryResponse> findAllActiveLabsWithStats();
 }
