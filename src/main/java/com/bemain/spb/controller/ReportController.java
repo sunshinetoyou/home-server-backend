@@ -3,6 +3,7 @@ package com.bemain.spb.controller;
 import com.bemain.spb.dto.report.ReportCreateRequest;
 import com.bemain.spb.dto.report.ReportDetailResponse;
 import com.bemain.spb.dto.report.ReportListResponse;
+import com.bemain.spb.dto.report.ReportStatusRequest;
 import com.bemain.spb.service.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -44,5 +45,18 @@ public class ReportController {
     @GetMapping("/list")
     public ResponseEntity<List<ReportListResponse>> getReportList(@RequestParam Long labId) {
         return ResponseEntity.ok(reportService.getReportList(labId));
+    }
+
+    // 4. 리포트 상태 변경 (개발자 피드백)
+    // PATCH /api/vul/report/{id}/status
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<String> updateStatus(
+            @PathVariable Long id,
+            @RequestBody ReportStatusRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        reportService.updateReportStatus(id, userDetails.getUsername(), request);
+
+        return ResponseEntity.ok("상태가 변경되었습니다.");
     }
 }

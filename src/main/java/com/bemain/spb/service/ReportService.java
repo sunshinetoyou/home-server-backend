@@ -3,6 +3,7 @@ package com.bemain.spb.service;
 import com.bemain.spb.dto.report.ReportCreateRequest;
 import com.bemain.spb.dto.report.ReportDetailResponse;
 import com.bemain.spb.dto.report.ReportListResponse;
+import com.bemain.spb.dto.report.ReportStatusRequest;
 import com.bemain.spb.entity.Lab;
 import com.bemain.spb.entity.Report;
 import com.bemain.spb.entity.User;
@@ -56,5 +57,26 @@ public class ReportService {
     // 2. 리포트 목록 조회 (Issue List)
     public List<ReportListResponse> getReportList(Long labId) {
         return reportRepository.findAllByLabIdWithCommentCount(labId);
+    }
+
+    // 3. 리포트 상태 변경 (개발자 전용)
+    @Transactional
+    public void updateReportStatus(Long reportId, String username, ReportStatusRequest request) {
+        // 1. 리포트 조회
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("리포트가 없습니다."));
+
+        // 2. 요청한 유저(개발자) 조회
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("사용자가 없습니다."));
+
+        // 리포트가 달린 '랩'의 '개발자 ID'와 현재 로그인한 '유저 ID'가 같은지 확인
+        if (!report.getLab().getDeveloper().getId().equals(user.getId())) {
+            throw new IllegalStateException("본인의 랩에 등록된 리포트만 처리할 수 있습니다.");
+        }
+
+        // 3. 상태 및 코멘트 업데이트 (Entity의 Setter 사용)
+        report.setStatus(request.getStatus());
+        report.setDeveloperComment(request.getDeveloperComment());
     }
 }
