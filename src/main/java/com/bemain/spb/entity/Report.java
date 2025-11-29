@@ -23,7 +23,7 @@ public class Report {
 
     // 누가 썼는지 (Hacker)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "author_id")
     private User author;
 
     // 어떤 랩에 대한 리포트인지
