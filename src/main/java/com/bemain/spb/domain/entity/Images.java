@@ -26,10 +26,14 @@ public class Images {
     @Column(length = 50)
     private String type;
 
-    public Images(String title, String imageUrl, String description, String type) {
+    @Column(name = "default_port", nullable = false)
+    private Integer defaultPort;
+
+    public Images(String title, String imageUrl, String description, String type,  Integer defaultPort) {
         this.title = title;
         this.imageUrl = imageUrl;
         this.description = description;
         this.type = type;
+        this.defaultPort = defaultPort;
     }
 }

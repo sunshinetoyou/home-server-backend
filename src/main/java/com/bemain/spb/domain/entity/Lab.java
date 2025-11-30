@@ -1,6 +1,7 @@
 package com.bemain.spb.domain.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -55,34 +56,14 @@ public class Lab {
     @CreatedDate
     private LocalDateTime createdAt;
 
-    public Lab(String title, String description, String deployUrl, User developer, Images image, String dockerImage, Integer customPort) {
-        this.title = title;
+    @Builder
+    public Lab(User developer, Images image, String title, String description, String dockerImage, Integer containerPort) {
         this.developer = developer;
         this.image = image;
+        this.title = title;
         this.description = description;
-        this.deployUrl = deployUrl;
-        this.isActive = true;
         this.dockerImage = dockerImage;
-
-        if (customPort != null) {
-            this.containerPort = customPort;
-        } else {
-            this.containerPort = this.image.getDefaultPort();
-        }
+        this.containerPort = containerPort;
+        this.isActive = true;
     }
-
-//    // 배포 정보 업데이트 로직 (내부 결정 로직 포함)
-//    public void updateDeployInfo(String dockerImage, Integer customPort) {
-//        this.dockerImage = dockerImage;
-//        this.isActive = true;
-//
-//        // [핵심 로직]
-//        // 1. 개발자가 포트를 지정했으면(customPort != null) -> 그걸 쓴다.
-//        // 2. 안 했으면 -> 템플릿(Image)의 기본 포트를 쓴다.
-//        if (customPort != null) {
-//            this.containerPort = customPort;
-//        } else {
-//            this.containerPort = this.image.getDefaultPort();
-//        }
-//    }
 }

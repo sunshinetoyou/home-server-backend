@@ -1,12 +1,13 @@
 package com.bemain.spb.domain.controller;
 
+import com.bemain.spb.domain.dto.lab.LabCreateRequest;
 import com.bemain.spb.domain.dto.lab.LabSummaryResponse;
 import com.bemain.spb.domain.service.LabService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,6 +17,18 @@ import java.util.List;
 public class LabController {
 
     private final LabService labService;
+
+    // 랩 등록 API (POST /api/lab)
+    @PostMapping
+    public ResponseEntity<String> createLab(
+            @RequestBody LabCreateRequest request,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        // 토큰에 있는 username을 Service로 넘깁니다.
+        Long labId = labService.createLab(userDetails.getUsername(), request);
+
+        return ResponseEntity.ok("랩이 성공적으로 등록되었습니다. ID: " + labId);
+    }
 
     // 랩 목록 (대시보드용)
     // GET /api/lab/list
