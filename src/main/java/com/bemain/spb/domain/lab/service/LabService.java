@@ -24,57 +24,47 @@ public class LabService {
     private final ImageRepository imageRepository;
     private final K3sService k3sService;
 
+    // 랩 등록
     @Transactional
     public Long createLab(String username, LabCreateRequest request) {
-        // 1. 개발자 조회
         User developer = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+        Images template = imageRepository.findById(request.getImageId())
+                .orElseThrow(() -> new IllegalArgumentException("템플릿 없음"));
 
-        // 2. 템플릿(Images) 조회
-        Images templateImage = imageRepository.findById(request.getImageId())
-                .orElseThrow(() -> new IllegalArgumentException("템플릿 이미지가 없습니다."));
-
-        // 3. [핵심 로직] 포트 결정 (Default vs Override)
-        // 요청에 포트가 있으면 그걸 쓰고, 없으면 템플릿의 기본값 사용
-        Integer finalPort = (request.getPort() != null)
-                ? request.getPort()
-                : templateImage.getDefaultPort();
-
-        // 4. Lab 엔티티 생성 (Builder 사용)
         Lab lab = Lab.builder()
                 .developer(developer)
-                .image(templateImage)
+                .image(template)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .dockerImage(request.getDockerImage()) // 개발자 제출 이미지
-                .containerPort(finalPort)              // 결정된 포트
+                // [New] 3-Tier 이미지 정보 저장
+                .feImage(request.getFeImage())
+                .beImage(request.getBeImage())
+                .dbImage(request.getDbImage())
                 .build();
 
-        // 5. 저장
         return labRepository.save(lab).getId();
     }
 
-    // 랩 실습 시작 (배포 요청)
+    // 실습 시작
     @Transactional
     public String startLabForHacker(Long labId, String username) {
-        // 1. DB에서 정보 조회 (Business Logic)
         Lab lab = labRepository.findById(labId)
-                .orElseThrow(() -> new IllegalArgumentException("랩을 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("랩 없음"));
         User hacker = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        // 2. 배포에 필요한 데이터 준비
         String uniqueName = "lab-" + labId + "-hacker-" + hacker.getId();
-        String dockerImage = lab.getDockerImage();
-        Integer containerPort = lab.getContainerPort();
 
-        // 3. K3sService 호출 (Infrastructure Logic)
-        // "K3s야, 이거 이름이랑 이미지 줄 테니까 띄워줘. 주소만 알려줘."
-        String deployUrl = k3sService.deployHackerLab(uniqueName, dockerImage, containerPort);
+        // [New] K3sService에 3개 이미지 모두 전달
+        String deployUrl = k3sService.deploy3TierLab(
+                uniqueName,
+                lab.getFeImage(),
+                lab.getBeImage(),
+                lab.getDbImage()
+        );
 
-        // 4. 결과 저장
         lab.setDeployUrl(deployUrl);
-
         return deployUrl;
     }
 

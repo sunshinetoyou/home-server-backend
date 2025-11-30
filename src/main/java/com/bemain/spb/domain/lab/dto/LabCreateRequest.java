@@ -14,6 +14,7 @@ public class LabCreateRequest {
     private String description;
 
     // 3. 개발자가 제출한 배포 정보
-    private String dockerImage; // 예: "kimdev/sql-lab:v1"
-    private Integer port;       // (선택) 비워두면 템플릿의 defaultPort 사용
+    private String feImage; // 필수
+    private String beImage; // 필수
+    private String dbImage; // 선택 (없으면 SQLite)
 }
