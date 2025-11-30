@@ -16,6 +16,8 @@ spec:
       labels:
         app: backend
     spec:
+      serviceAccountName: backend-admin
+
       imagePullSecrets:
       - name: ghcr-secret
       containers:
