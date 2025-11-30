@@ -18,7 +18,7 @@ public interface LabRepository extends JpaRepository<Lab, Long> {
     List<Lab> findByDeveloperId(Long developerId);
 
     // 랩 정보와 리포트 개수를 한 번에 가져오는 쿼리
-    @Query("SELECT new com.bemain.spb.dto.lab.LabSummaryResponse(" +
+    @Query("SELECT new com.bemain.spb.domain.dto.lab.LabSummaryResponse(" +
             "  l.id, l.title, l.developer.nickname, l.image.title, COUNT(r) " +
             ") " +
             "FROM Lab l " +
