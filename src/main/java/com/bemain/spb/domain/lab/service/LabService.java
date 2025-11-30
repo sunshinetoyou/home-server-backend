@@ -1,11 +1,14 @@
 package com.bemain.spb.domain.lab.service;
 
 import com.bemain.spb.domain.lab.dto.LabCreateRequest;
-import com.bemain.spb.domain.lab.dto.LabSummaryResponse;
+import com.bemain.spb.domain.lab.dto.LabStatusResponse;
 import com.bemain.spb.domain.image.entity.Images;
 import com.bemain.spb.domain.lab.entity.Lab;
 import com.bemain.spb.domain.lab.entity.LabAssignment;
 import com.bemain.spb.domain.lab.repository.LabAssignmentRepository;
+import com.bemain.spb.domain.report.entity.ReportStatus;
+import com.bemain.spb.domain.report.repository.ReportRepository;
+import com.bemain.spb.domain.user.entity.Role;
 import com.bemain.spb.domain.user.entity.User;
 import com.bemain.spb.domain.image.repository.ImageRepository;
 import com.bemain.spb.domain.lab.repository.LabRepository;
@@ -26,6 +29,7 @@ public class LabService {
     private final LabRepository labRepository;
     private final UserRepository userRepository;
     private final ImageRepository imageRepository;
+    private final ReportRepository reportRepository;
     private final K3sService k3sService;
     private final LabAssignmentRepository labAssignmentRepository;
 
@@ -142,7 +146,47 @@ public class LabService {
         }
     }
 
-    public List<LabSummaryResponse> getActiveLabList() {
-        return labRepository.findAllActiveLabsWithStats();
+
+    // Lab CRUD
+    @Transactional(readOnly = true)
+    public LabStatusResponse getLabStatus() {
+        // 1. Live Targets: 현재 Running 상태인 랩 개수 조회
+        long liveTargets = labRepository.countByIsActiveTrue();
+
+        // 2. Bugs Found: 전체 리포트 누적 개수
+        long bugsFound = reportRepository.count();
+
+        // 3. Active Hunters: 접속 중인 유저
+        long activeHunters = labAssignmentRepository.countByExpiresAtAfter(LocalDateTime.now());
+
+        // 4. Threat Level 계산 로직 (비즈니스 로직)
+        // 예: 활성화된 랩이 많거나 리포트가 많으면 위험도 상승
+        String threatLevel = calculateThreatLevel(bugsFound, reportRepository.countByStatusIn(List.of(ReportStatus.PENDING, ReportStatus.IN_PROGRESS)));
+
+        return LabStatusResponse.builder()
+                .liveTargets(liveTargets)
+                .threatLevel(threatLevel)
+                .bugsFound(bugsFound)
+                .activeHunters(activeHunters)
+                .build();
+    }
+
+    // 위험도 계산 알고리즘 (나중에 더 복잡하게 고도화 가능)
+    private String calculateThreatLevel(long bugged, long bugging) {
+        if (bugged == 0) {
+            return "Low"; // 데이터가 없으면 안전한 것으로 간주
+        }
+
+        var p = (double) bugging / bugged;
+
+        if (p > 0.9) {
+            return "Critical";
+        } else if (p > 0.7) {
+            return "High";
+        } else if (p > 0.4) {
+            return "Medium";
+        } else {
+            return "Low";
+        }
     }
 }

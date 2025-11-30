@@ -2,10 +2,12 @@ package com.bemain.spb.domain.report.repository;
 
 import com.bemain.spb.domain.report.dto.ReportListResponse;
 import com.bemain.spb.domain.report.entity.Report;
+import com.bemain.spb.domain.report.entity.ReportStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
@@ -25,4 +27,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
             "GROUP BY r.id, r.title, r.author.nickname, r.severity, r.status, r.createdAt " +
             "ORDER BY r.createdAt DESC")
     List<ReportListResponse> findAllByLabIdWithCommentCount(@Param("labId") Long labId);
+
+    // 처리중인 리포트 개수
+    long countByStatusIn(Collection<ReportStatus> statuses);
 }

@@ -1,7 +1,7 @@
 package com.bemain.spb.domain.lab.controller;
 
 import com.bemain.spb.domain.lab.dto.LabCreateRequest;
-import com.bemain.spb.domain.lab.dto.LabSummaryResponse;
+import com.bemain.spb.domain.lab.dto.LabStatusResponse;
 import com.bemain.spb.domain.lab.service.LabService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -54,10 +54,10 @@ public class LabController {
     }
 
     // 랩 목록 (대시보드용)
-    // GET /api/lab/list
-    @GetMapping("/list")
-    public ResponseEntity<List<LabSummaryResponse>> getLabList() {
-        List<LabSummaryResponse> labs = labService.getActiveLabList();
+    // GET /api/lab/status
+    @GetMapping("/status")
+    public ResponseEntity<LabStatusResponse> getLabStatus() {
+        LabStatusResponse labs = labService.getLabStatus();
         return ResponseEntity.ok(labs);
     }
 }

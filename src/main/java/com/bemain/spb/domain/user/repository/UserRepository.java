@@ -1,5 +1,6 @@
 package com.bemain.spb.domain.user.repository;
 
+import com.bemain.spb.domain.user.entity.Role;
 import com.bemain.spb.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
@@ -10,4 +11,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // (선택) 중복 가입 방지용
     boolean existsByUsername(String username);
+
+    // 활성화된 랩 수 대체재 (나중에 변경 필요)
+    long countByRole(Role role);
 }
