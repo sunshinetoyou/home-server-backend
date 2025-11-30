@@ -16,7 +16,7 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     // 특정 해커가 쓴 리포트만 보고 싶을 때 (내 활동 내역)
     List<Report> findByAuthorId(Long authorId);
 
-    @Query("SELECT new com.bemain.spb.dto.report.ReportListResponse(" +
+    @Query("SELECT new com.bemain.spb.domain.dto.report.ReportListResponse(" +
             "  r.id, r.title, r.author.nickname, r.severity, r.status, r.createdAt, COUNT(c) " +
             ") " +
             "FROM Report r " +
