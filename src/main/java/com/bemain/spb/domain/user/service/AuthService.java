@@ -4,7 +4,7 @@ import com.bemain.spb.domain.user.dto.auth.LoginRequest;
 import com.bemain.spb.domain.user.dto.auth.SignupRequest;
 import com.bemain.spb.domain.user.dto.auth.TokenResponse;
 import com.bemain.spb.domain.user.entity.User;
-import com.bemain.spb.domain.jwt.JwtTokenProvider;
+import com.bemain.spb.domain.etc.jwt.JwtTokenProvider;
 import com.bemain.spb.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;

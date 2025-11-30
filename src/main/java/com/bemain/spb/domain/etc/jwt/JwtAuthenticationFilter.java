@@ -1,4 +1,4 @@
-package com.bemain.spb.domain.jwt;
+package com.bemain.spb.domain.etc.jwt;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

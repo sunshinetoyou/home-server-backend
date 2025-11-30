@@ -1,4 +1,4 @@
-package com.bemain.spb.domain.jwt;
+package com.bemain.spb.domain.etc.jwt;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;

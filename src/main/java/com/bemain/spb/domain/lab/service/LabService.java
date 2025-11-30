@@ -22,6 +22,7 @@ public class LabService {
     private final LabRepository labRepository;
     private final UserRepository userRepository;
     private final ImageRepository imageRepository;
+    private final K3sService k3sService;
 
     @Transactional
     public Long createLab(String username, LabCreateRequest request) {
@@ -51,6 +52,30 @@ public class LabService {
 
         // 5. 저장
         return labRepository.save(lab).getId();
+    }
+
+    // 랩 실습 시작 (배포 요청)
+    @Transactional
+    public String startLabForHacker(Long labId, String username) {
+        // 1. DB에서 정보 조회 (Business Logic)
+        Lab lab = labRepository.findById(labId)
+                .orElseThrow(() -> new IllegalArgumentException("랩을 찾을 수 없습니다."));
+        User hacker = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+
+        // 2. 배포에 필요한 데이터 준비
+        String uniqueName = "lab-" + labId + "-hacker-" + hacker.getId();
+        String dockerImage = lab.getDockerImage();
+        Integer containerPort = lab.getContainerPort();
+
+        // 3. K3sService 호출 (Infrastructure Logic)
+        // "K3s야, 이거 이름이랑 이미지 줄 테니까 띄워줘. 주소만 알려줘."
+        String deployUrl = k3sService.deployHackerLab(uniqueName, dockerImage, containerPort);
+
+        // 4. 결과 저장
+        lab.setDeployUrl(deployUrl);
+
+        return deployUrl;
     }
 
     public List<LabSummaryResponse> getActiveLabList() {

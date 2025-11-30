@@ -1,7 +1,7 @@
 package com.bemain.spb.domain.config;
 
-import com.bemain.spb.domain.jwt.JwtAuthenticationFilter;
-import com.bemain.spb.domain.jwt.JwtTokenProvider;
+import com.bemain.spb.domain.etc.jwt.JwtAuthenticationFilter;
+import com.bemain.spb.domain.etc.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
