@@ -37,9 +37,20 @@ public class LabController {
             @AuthenticationPrincipal UserDetails userDetails
     ) {
         // 해커의 ID와 랩 ID를 넘겨 K8s 파드 생성을 요청합니다.
-        String deployUrl = labService.startLabForHacker(id, userDetails.getUsername());
+        String deployUrl = labService.allocationLab(id, userDetails.getUsername());
 
         return ResponseEntity.ok("실습 환경이 성공적으로 배포되었습니다. 접속 주소: " + deployUrl);
+    }
+
+    // 실습 종료 (반납)
+    // POST /api/lab/{id}/stop
+    @PostMapping("/{id}/stop")
+    public ResponseEntity<String> stopLab(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        labService.stopLab(id, userDetails.getUsername());
+        return ResponseEntity.ok("실습 환경이 반납되었습니다.");
     }
 
     // 랩 목록 (대시보드용)

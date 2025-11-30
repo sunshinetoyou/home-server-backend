@@ -35,6 +35,17 @@ public class K3sService {
         return "http://" + hostDomain;
     }
 
+    public void deleteLab(String uniqueName) {
+        // Deployment 삭제 (파드도 같이 죽음)
+        k8sClient.apps().deployments().inNamespace("default").withName(uniqueName).delete();
+
+        // Service 삭제
+        k8sClient.services().inNamespace("default").withName(uniqueName).delete();
+
+        // Ingress 삭제
+        k8sClient.network().v1().ingresses().inNamespace("default").withName(uniqueName).delete();
+    }
+
     // --- Private Methods ---
 
     private Deployment createDeployment(String name, String feImg, String beImg, String dbImg) {
