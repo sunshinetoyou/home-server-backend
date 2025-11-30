@@ -36,7 +36,7 @@ public class Lab {
     @Column(columnDefinition = "TEXT")
     private String description; // 랩 설명
 
-    @Column(nullable = false)
+    @Column(name = "deploy_url")
     private String deployUrl; // 배포된 실제 URL (http://...)
 
     @Column(columnDefinition = "boolean default true")
