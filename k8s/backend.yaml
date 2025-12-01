@@ -30,7 +30,7 @@ spec:
         env:
         # --- DB 연결 설정 ---
         - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-service:5432/webntrDB" # 내부 DNS 사용
+          value: "jdbc:postgresql://postgres-db:5432/webntrDB" # 내부 DNS 사용
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
@@ -43,7 +43,7 @@ spec:
               key: password
         # JPA 설정 (초기엔 update로 설정)
         - name: SPRING_JPA_HIBERNATE_DDL_AUTO
-          value: "update"
+          value: "validate"
         # 3. JWT 설정 (Secret에서 가져오도록 변경)
         - name: JWT_SECRET
           valueFrom:
