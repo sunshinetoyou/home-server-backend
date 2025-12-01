@@ -47,6 +47,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 사용 안함(JWT)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/test", "/error").permitAll() // 로그인, 회원가입은 누구나 접근 가능
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/lab/deploy", "/api/lab/my-lab").hasAuthority("DEVELOPER") // 개발자 전용
                         .requestMatchers("/api/lab/*/assign").hasAuthority("HACKER") // 해커 전용
                         .anyRequest().authenticated() // 나머지는 로그인해야 접근 가능
