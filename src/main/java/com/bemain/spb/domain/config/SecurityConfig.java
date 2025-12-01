@@ -5,10 +5,12 @@ import com.bemain.spb.domain.etc.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -27,11 +29,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsService userDetailsService; // 이제 CustomUserDetailsService가 주입됩니다.
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // 비밀번호 암호화 (BCrypt)
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
@@ -42,27 +44,39 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // REST API이므로 CSRF 보안 비활성화
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 설정
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 사용 안함(JWT)
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/test", "/error").permitAll() // 로그인, 회원가입은 누구나 접근 가능
+                        // 1. 공용 API (인증 불필요)
+                        // [변경] /api/auth -> /api/v1/auth
+                        .requestMatchers("/api/v1/auth/**", "/error", "/test").permitAll()
+                        .requestMatchers("/api/v1/tags/**", "/api/v1/labs", "/api/v1/reports/**").permitAll() // 조회는 누구나
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/api/lab/deploy", "/api/lab/my-lab").hasAuthority("DEVELOPER") // 개발자 전용
-                        .requestMatchers("/api/lab/*/assign").hasAuthority("HACKER") // 해커 전용
-                        .anyRequest().authenticated() // 나머지는 로그인해야 접근 가능
+
+                        // 2. 개발자 전용 (랩 등록, 수정, 삭제)
+                        // [변경] 권한 이름 앞에 ROLE_ 붙임
+                        .requestMatchers(HttpMethod.POST, "/api/v1/labs").hasAuthority("ROLE_DEVELOPER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/labs/**").hasAuthority("ROLE_DEVELOPER")
+
+                        // 3. 해커 전용 (실습 시작, 리포트 작성)
+                        .requestMatchers("/api/v1/labs/*/start", "/api/v1/labs/*/stop").hasAuthority("ROLE_HACKER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reports").hasAuthority("ROLE_HACKER")
+
+                        // 4. 나머지 모든 요청은 인증 필요
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, userDetailsService), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // CORS 설정: 프론트엔드(localhost:3000 등)에서 오는 요청 허용
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); // 프론트 주소 (필요시 추가)
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // 프론트엔드 개발 시 localhost:3000 허용
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
