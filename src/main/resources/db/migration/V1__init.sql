@@ -53,6 +53,7 @@ CREATE TABLE hack_lab (
     hacker_id BIGINT NOT NULL,
     url VARCHAR(255),
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
 
     CONSTRAINT fk_hacklab_lab FOREIGN KEY (lab_id) REFERENCES dev_lab(id) ON DELETE CASCADE,
