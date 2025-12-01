@@ -1,0 +1,21 @@
+package com.bemain.spb.domain.lab.repository;
+
+import com.bemain.spb.domain.lab.entity.DevLab;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface DevLabRepository extends JpaRepository<DevLab, Long> {
+
+    // 개발자 대시보드용 (내가 만든 랩)
+    List<DevLab> findAllByDeveloperId(Long developerId);
+
+    // 활성화된 모든 랩 조회 (최신순)
+    List<DevLab> findAllByIsActiveTrueOrderByCreatedAtDesc();
+
+    // 태그 기반 랩 조회
+    @Query("SELECT DISTINCT d FROM DevLab d JOIN d.tags t WHERE t.name = :tagName AND d.isActive = true")
+    List<DevLab> findByTagName(@Param("tagName") String tagName);
+}

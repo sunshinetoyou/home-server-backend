@@ -1,30 +1,29 @@
 package com.bemain.spb.domain.report.dto;
 
+import com.bemain.spb.domain.report.entity.Report;
+import com.bemain.spb.domain.report.entity.ReportSeverity;
 import com.bemain.spb.domain.report.entity.ReportStatus;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Getter
-@NoArgsConstructor
 public class ReportListResponse {
-    private Long reportId;
+    private Long id;
     private String title;
     private String authorName;
-    private String severity;
+    private String labTitle;
+    private ReportSeverity severity;
     private ReportStatus status;
     private LocalDateTime createdAt;
-    private Long commentCount; // 깃허브처럼 댓글 수 표시!
 
-    // JPQL 프로젝션용 생성자
-    public ReportListResponse(Long reportId, String title, String authorName, String severity, ReportStatus status, LocalDateTime createdAt, Long commentCount) {
-        this.reportId = reportId;
-        this.title = title;
-        this.authorName = authorName;
-        this.severity = severity;
-        this.status = status;
-        this.createdAt = createdAt;
-        this.commentCount = commentCount;
+    public ReportListResponse(Report report) {
+        this.id = report.getId();
+        this.title = report.getTitle();
+        this.authorName = report.getAuthor().getNickname();
+        this.labTitle = report.getDevLab().getTitle();
+        this.severity = report.getSeverity();
+        this.status = report.getStatus();
+        this.createdAt = report.getCreatedAt();
     }
 }

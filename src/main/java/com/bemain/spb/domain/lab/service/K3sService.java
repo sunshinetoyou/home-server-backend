@@ -1,5 +1,6 @@
 package com.bemain.spb.domain.lab.service;
 
+import com.bemain.spb.domain.lab.entity.DevLab;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -7,7 +8,7 @@ import io.fabric8.kubernetes.api.model.networking.v1.Ingress;
 import io.fabric8.kubernetes.api.model.networking.v1.IngressBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service; // Spring Service
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
@@ -17,14 +18,42 @@ public class K3sService {
 
     private final KubernetesClient k8sClient;
 
-    public String deploy3TierLab(String uniqueName, String feImg, String beImg, String dbImg) {
+    /**
+     * [Public] 개발자 프리뷰(Honeypot) 배포
+     * - DevLab 등록 시 자동 호출
+     * - 이름 규칙: lab-{id}-public
+     */
+    public String deployDevLab(DevLab devLab) {
+        String uniqueName = "lab-" + devLab.getId() + "-public";
+        return deployCommonLab(uniqueName, devLab);
+    }
+
+    /**
+     * 해커 실습 인스턴스 배포
+     * - 이름 규칙: lab-{id}-hacker-{uid}
+     */
+    public String deployHackLab(DevLab devLab, Long hackerId) {
+        String uniqueName = "lab-" + devLab.getId() + "-hacker-" + hackerId;
+        return deployCommonLab(uniqueName, devLab);
+    }
+
+    // 랩 삭제 (공통)
+    public void deleteLab(String uniqueName) {
+        k8sClient.apps().deployments().inNamespace("default").withName(uniqueName).delete();
+        k8sClient.services().inNamespace("default").withName(uniqueName).delete();
+        k8sClient.network().v1().ingresses().inNamespace("default").withName(uniqueName).delete();
+    }
+
+    // --- Private Helpers (공통 로직) ---
+
+    private String deployCommonLab(String uniqueName, DevLab blueprint) {
         String hostDomain = uniqueName + ".server.io";
 
-        // 1. Deployment 생성 (1 Pod, Multi-Container)
-        Deployment deployment = createDeployment(uniqueName, feImg, beImg, dbImg);
+        // 1. Deployment 생성 (DevLab 설계도 반영)
+        Deployment deployment = createDeploymentSpec(uniqueName, blueprint);
         k8sClient.apps().deployments().inNamespace("default").resource(deployment).serverSideApply();
 
-        // 2. Service 생성 (풀 패키지 경로 사용)
+        // 2. Service 생성
         io.fabric8.kubernetes.api.model.Service service = createK8sService(uniqueName);
         k8sClient.services().inNamespace("default").resource(service).serverSideApply();
 
@@ -35,87 +64,70 @@ public class K3sService {
         return "http://" + hostDomain;
     }
 
-    public void deleteLab(String uniqueName) {
-        // Deployment 삭제 (파드도 같이 죽음)
-        k8sClient.apps().deployments().inNamespace("default").withName(uniqueName).delete();
-
-        // Service 삭제
-        k8sClient.services().inNamespace("default").withName(uniqueName).delete();
-
-        // Ingress 삭제
-        k8sClient.network().v1().ingresses().inNamespace("default").withName(uniqueName).delete();
-    }
-
-    // --- Private Methods ---
-
-    private Deployment createDeployment(String name, String feImg, String beImg, String dbImg) {
-
-        // 1. 빌더 시작 (여기까진 DeploymentBuilder)
+    private Deployment createDeploymentSpec(String name, DevLab lab) {
+        // 빌더 시작
         DeploymentBuilder builder = new DeploymentBuilder()
                 .withNewMetadata().withName(name).withLabels(Map.of("app", name)).endMetadata();
 
-        // 2. Pod Spec 단계로 진입 (여기서부터 타입이 복잡해지므로 var 사용 추천)
-        // var podSpec은 PodSpecFluent.SpecNested 타입이 됩니다.
+        // Pod Spec 구성
         var podSpec = builder.withNewSpec()
                 .withReplicas(1)
                 .withNewSelector().withMatchLabels(Map.of("app", name)).endSelector()
                 .withNewTemplate()
                 .withNewMetadata().withLabels(Map.of("app", name)).endMetadata()
-                .withNewSpec(); // <--- Pod Spec 내부 진입
-                // .withImagePullSecrets(new LocalObjectReference("lab-registry-secret")); 나중에 시크릿값 k3s 넣어주면 사용
+                .withNewSpec();
 
-        // 3. [Container 1] Frontend 추가
+        // (옵션) Private Registry Secret 사용 시 주석 해제
+        // .withImagePullSecrets(new LocalObjectReference("lab-registry-secret"));
+
+        // [Container 1] Frontend
         podSpec.addNewContainer()
                 .withName("frontend")
-                .withImage(feImg)
+                .withImage(lab.getFeImage()) // DevLab 의존
                 .withImagePullPolicy("Always")
                 .addNewPort().withContainerPort(80).endPort()
                 .addNewEnv().withName("BACKEND_URL").withValue("http://localhost:8080").endEnv()
-                .endContainer(); // 컨테이너 설정 끝
+                .endContainer();
 
-        // 4. [Container 2] Backend 시작 (아직 닫지 않음)
-        // 변수에 담아서 조건에 따라 환경변수를 더 넣을 수 있게 함
+        // [Container 2] Backend
         var backendContainer = podSpec.addNewContainer()
                 .withName("backend")
-                .withImage(beImg)
+                .withImage(lab.getBeImage()) // DevLab 의존
                 .withImagePullPolicy("Always")
                 .addNewPort().withContainerPort(8080).endPort();
 
-        // 5. [조건부 로직] DB 이미지 유무에 따라 분기
-        if (dbImg != null && !dbImg.isEmpty()) {
-//            // (A) DB 모드: 백엔드에 DB 접속 정보 주입
-//            backendContainer
-//                    .addNewEnv().withName("DB_URL").withValue("jdbc:postgresql://localhost:5432/labdb").endEnv()
-//                    .addNewEnv().withName("DB_USER").withValue("hacker").endEnv()
-//                    .addNewEnv().withName("DB_PASS").withValue("hacker").endEnv();
-//
-//            backendContainer.endContainer(); // Backend 설정 닫기
-//
-//            // (B) DB 컨테이너 추가
-//            podSpec.addNewContainer()
-//                    .withName("database")
-//                    .withImage(dbImg)
-//                    .withImagePullPolicy("Always")
-//                    .addNewPort().withContainerPort(5432).endPort()
-//                    .addNewEnv().withName("POSTGRES_DB").withValue("labdb").endEnv()
-//                    .addNewEnv().withName("POSTGRES_USER").withValue("hacker").endEnv()
-//                    .addNewEnv().withName("POSTGRES_PASSWORD").withValue("hacker").endEnv()
-//                    .withNewResources()
-//                    .withRequests(Map.of("memory", new Quantity("128Mi")))
-//                    .withLimits(Map.of("memory", new Quantity("256Mi")))
-//                    .endResources()
-//                    .endContainer(); // DB 설정 닫기
-            throw new UnsupportedOperationException(
-                    "현재 홈서버 리소스 제한으로 인해 '별도 DB 컨테이너(3-Tier)' 모드는 지원하지 않습니다. db_image를 비워서 'SQLite 모드'로 요청해주세요."
-            );
+        // [Container 3] Database (조건부 생성)
+        if (lab.getDbImage() != null && !lab.getDbImage().isBlank()) {
+            // A. DB 이미지 모드 (3-Tier)
+            backendContainer
+                    .addNewEnv().withName("DB_URL").withValue("jdbc:postgresql://localhost:5432/labdb").endEnv()
+                    .addNewEnv().withName("DB_USER").withValue("hacker").endEnv()
+                    .addNewEnv().withName("DB_PASS").withValue("hacker").endEnv();
+
+            backendContainer.endContainer(); // BE 닫기
+
+            // DB 컨테이너 추가
+            podSpec.addNewContainer()
+                    .withName("database")
+                    .withImage(lab.getDbImage())
+                    .withImagePullPolicy("Always")
+                    .addNewPort().withContainerPort(5432).endPort()
+                    .addNewEnv().withName("POSTGRES_DB").withValue("labdb").endEnv()
+                    .addNewEnv().withName("POSTGRES_USER").withValue("hacker").endEnv()
+                    .addNewEnv().withName("POSTGRES_PASSWORD").withValue("hacker").endEnv()
+                    .withNewResources()
+                    .withRequests(Map.of("memory", new Quantity("128Mi")))
+                    .withLimits(Map.of("memory", new Quantity("256Mi")))
+                    .endResources()
+                    .endContainer(); // DB 닫기
+
         } else {
-            // (C) SQLite 모드
+            // B. SQLite 모드 (2-Tier)
             backendContainer.addNewEnv().withName("DB_TYPE").withValue("sqlite").endEnv();
-            backendContainer.endContainer(); // Backend 설정 닫기
+            backendContainer.endContainer(); // BE 닫기
         }
 
-        // 6. 모든 설정 닫고 빌드 (Build)
-        // PodSpec -> PodTemplate -> DeploymentSpec -> DeploymentBuilder -> Deployment
+        // 최종 빌드
         return podSpec.endSpec().endTemplate().endSpec().build();
     }
 
@@ -127,8 +139,8 @@ public class K3sService {
                 .withType("ClusterIP")
                 .addNewPort()
                 .withProtocol("TCP")
-                .withPort(80) // Service 외부 포트
-                .withTargetPort(new IntOrString(80)) // Frontend 포트로 연결
+                .withPort(80)
+                .withTargetPort(new IntOrString(80))
                 .endPort()
                 .endSpec()
                 .build();

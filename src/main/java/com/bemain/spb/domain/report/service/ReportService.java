@@ -1,82 +1,86 @@
 package com.bemain.spb.domain.report.service;
 
-import com.bemain.spb.domain.report.dto.ReportCreateRequest;
-import com.bemain.spb.domain.report.dto.ReportDetailResponse;
-import com.bemain.spb.domain.report.dto.ReportListResponse;
-import com.bemain.spb.domain.report.dto.ReportStatusRequest;
-import com.bemain.spb.domain.lab.entity.Lab;
+import com.bemain.spb.domain.lab.entity.DevLab;
+import com.bemain.spb.domain.lab.repository.DevLabRepository;
+import com.bemain.spb.domain.report.dto.*;
 import com.bemain.spb.domain.report.entity.Report;
-import com.bemain.spb.domain.user.entity.User;
-import com.bemain.spb.domain.lab.repository.LabRepository;
+import com.bemain.spb.domain.report.entity.ReportStatus;
 import com.bemain.spb.domain.report.repository.ReportRepository;
+import com.bemain.spb.domain.user.entity.RoleType;
+import com.bemain.spb.domain.user.entity.User;
 import com.bemain.spb.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 조회 전용 트랜잭션 (성능 최적화)
 public class ReportService {
 
     private final ReportRepository reportRepository;
-    private final LabRepository labRepository;
+    private final DevLabRepository devLabRepository;
     private final UserRepository userRepository;
 
-    // 리포트 상세 조회 (댓글 포함)
-    public ReportDetailResponse getReportDetail(Long reportId) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 리포트를 찾을 수 없습니다. id=" + reportId));
-
-        // Entity -> DTO 변환
-        return new ReportDetailResponse(report);
-    }
-
-    // 1. 리포트 생성 (Issue Open)
+    // 1. 리포트 제출 (해커)
     @Transactional
-    public Long createReport(String userName, ReportCreateRequest request) {
-        User author = userRepository.findByUsername(userName)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
-
-        Lab lab = labRepository.findById(request.getLabId())
+    public Long createReport(String username, ReportCreateRequest request) {
+        User author = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+        DevLab lab = devLabRepository.findById(request.getLabId())
                 .orElseThrow(() -> new IllegalArgumentException("랩 없음"));
 
-        Report report = new Report(
-                request.getTitle(),
-                request.getContent(),
-                request.getSeverity(),
-                author,
-                lab
-        );
+        Report report = Report.builder()
+                .author(author)
+                .devLab(lab)
+                .title(request.getTitle())
+                .content(request.getContent())
+                .severity(request.getSeverity())
+                // status는 빌더 기본값(PENDING) 사용
+                .build();
 
         return reportRepository.save(report).getId();
     }
 
-    // 2. 리포트 목록 조회 (Issue List)
-    public List<ReportListResponse> getReportList(Long labId) {
-        return reportRepository.findAllByLabIdWithCommentCount(labId);
-    }
-
-    // 3. 리포트 상태 변경 (개발자 전용)
-    @Transactional
-    public void updateReportStatus(Long reportId, String username, ReportStatusRequest request) {
-        // 1. 리포트 조회
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("리포트가 없습니다."));
-
-        // 2. 요청한 유저(개발자) 조회
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("사용자가 없습니다."));
-
-        // 리포트가 달린 '랩'의 '개발자 ID'와 현재 로그인한 '유저 ID'가 같은지 확인
-        if (!report.getLab().getDeveloper().getId().equals(user.getId())) {
-            throw new IllegalStateException("본인의 랩에 등록된 리포트만 처리할 수 있습니다.");
+    // 2. 리포트 목록 조회
+    @Transactional(readOnly = true)
+    public List<ReportListResponse> getReports(Long labId) {
+        List<Report> reports;
+        if (labId != null) {
+            reports = reportRepository.findAllByDevLabIdOrderByCreatedAtDesc(labId);
+        } else {
+            reports = reportRepository.findAll(); // 전체 조회 (관리자용 혹은 공개용)
         }
 
-        // 3. 상태 및 코멘트 업데이트 (Entity의 Setter 사용)
+        return reports.stream()
+                .map(ReportListResponse::new)
+                .collect(Collectors.toList());
+    }
+
+    // 3. 리포트 상세 조회
+    @Transactional(readOnly = true)
+    public ReportResponse getReport(Long reportId) {
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("리포트 없음"));
+        return new ReportResponse(report);
+    }
+
+    // 4. 상태 변경 (개발자 전용)
+    @Transactional
+    public void updateStatus(Long reportId, String username, ReportStatusRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("리포트 없음"));
+
+        // [권한 체크] 랩의 주인이거나 관리자여야 함
+        if (!report.getDevLab().getDeveloper().getId().equals(user.getId())
+                && user.getRole() != RoleType.ADMIN) {
+            throw new IllegalArgumentException("해당 랩의 개발자만 상태를 변경할 수 있습니다.");
+        }
+
         report.setStatus(request.getStatus());
-        report.setDeveloperComment(request.getDeveloperComment());
     }
 }

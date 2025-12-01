@@ -1,69 +1,59 @@
 package com.bemain.spb.domain.report.entity;
 
-import com.bemain.spb.domain.comment.entity.Comment;
-import com.bemain.spb.domain.lab.entity.Lab;
+import com.bemain.spb.domain.lab.entity.DevLab;
 import com.bemain.spb.domain.user.entity.User;
+import com.bemain.spb.global.entity.BaseTimeEntity;
+import com.bemain.spb.domain.comment.entity.Comment; // Comment 임포트
+import java.util.ArrayList;
+import java.util.List;
+
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter @Setter
 @NoArgsConstructor
-@EntityListeners(AuditingEntityListener.class) // 생성 시간 자동 저장
-public class Report {
+@Table(name = "report")
+public class Report extends BaseTimeEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 누가 썼는지 (Hacker)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id")
+    @JoinColumn(name = "author_id", nullable = false)
     private User author;
 
-    // 어떤 랩에 대한 리포트인지
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lab_id")
-    private Lab lab;
+    @JoinColumn(name = "lab_id", nullable = false)
+    private DevLab devLab;
 
     @Column(nullable = false)
-    private String title; // 취약점 제목 (예: XSS 발견)
+    private String title;
 
     @Column(columnDefinition = "TEXT", nullable = false)
-    private String content; // 내용 (PoC, 재현 과정)
-
-    @Column(nullable = false)
-    private String severity; // 위험도 (High, Medium, Low)
+    private String content;
 
     @Enumerated(EnumType.STRING)
-    private ReportStatus status; // 상태 (PENDING, IN_PROGRESS, RESOLVED, REJECTED)
+    @Column(nullable = false)
+    private ReportSeverity severity;
 
-    // 개발자 피드백 (반려 사유 or 해결 코멘트)
-    @Column(columnDefinition = "TEXT")
-    private String developerComment;
+    @Enumerated(EnumType.STRING)
+    private ReportStatus status = ReportStatus.PENDING;
 
-    // 댓글 리스트 (양방향 매핑)
-    // 리포트가 삭제되면 댓글도 같이 삭제되도록 cascade 설정
-    @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "report", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @OrderBy("createdAt ASC")
     private List<Comment> comments = new ArrayList<>();
 
-    @CreatedDate
-    private LocalDateTime createdAt; // 작성일
-
-    public Report(String title, String content, String severity, User author, Lab lab) {
+    @Builder
+    public Report(User author, DevLab devLab, String title, String content, ReportSeverity severity) {
+        this.author = author;
+        this.devLab = devLab;
         this.title = title;
         this.content = content;
         this.severity = severity;
-        this.author = author;
-        this.lab = lab;
         this.status = ReportStatus.PENDING;
     }
 }
