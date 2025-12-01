@@ -22,7 +22,6 @@ spec:
       - name: ghcr-secret
       containers:
       - name: backend
-        # 🌟 이미지 이름: 본인 ID로 변경 필수!
         image: ghcr.io/sunshinetoyou/home-server-backend:latest
         imagePullPolicy: Always
         ports:
@@ -30,7 +29,7 @@ spec:
         env:
         # --- DB 연결 설정 ---
         - name: SPRING_DATASOURCE_URL
-          value: "jdbc:postgresql://postgres-db:5432/webntrDB" # 내부 DNS 사용
+          value: "jdbc:postgresql://postgres-db:5432/webntrDB"
         - name: SPRING_DATASOURCE_USERNAME
           valueFrom:
             secretKeyRef:
