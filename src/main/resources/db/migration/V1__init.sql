@@ -55,6 +55,7 @@ CREATE TABLE hack_lab (
 
     url VARCHAR(255),
     status VARCHAR(50),
+    last_error_log TEXT,
 
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
