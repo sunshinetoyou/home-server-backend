@@ -31,16 +31,16 @@ VALUES
 ),
 -- Case 2: 작성 중인 랩 (이미지 없음 -> Inactive 고정)
 (
-    1,
-    'Draft Lab',
-    '아직 이미지를 준비 중인 랩입니다.',
-    NULL, -- [중요] 아직 입력 안 함
-    NULL,
-    NULL,
-    NULL,
-    NULL, -- URL 없음
-    false -- 비활성 상태
-);
+     1,
+     'Real Deployment Test',
+     '이 랩은 실제 Nginx와 Hello-App 컨테이너가 배포됩니다. 로그 테스트에 최적화되어 있습니다.',
+     'nginx:alpine',
+     'gcr.io/google-samples/hello-app:1.0',
+     'SQLITE_SCRIPT',
+     'CREATE TABLE test (id INT); INSERT INTO test VALUES (1);',
+     'http://lab-1-public.server.io', 
+     true
+ );
 -- 4. 랩-태그 연결
 -- 1번 랩(SQLi)에 태그(4: SQL Injection, 1: Spring Boot) 연결 가정
 INSERT INTO lab_tag (lab_id, tag_id) VALUES
