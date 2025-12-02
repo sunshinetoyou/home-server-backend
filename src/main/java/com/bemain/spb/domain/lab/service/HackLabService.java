@@ -89,7 +89,7 @@ public class HackLabService {
                 .filter(lab -> lab.getDevLab().getId().equals(devLabId))
                 .orElseThrow(() -> new IllegalArgumentException("진행 중인 실습이 아닙니다."));
 
-        String uniqueName = "lab-" + devLabId + "-hacker-" + hacker.getId();
+        String uniqueName = getUniqueName(hackLab);
         k3sService.deleteLab(uniqueName);
 
         hackLabRepository.delete(hackLab);
@@ -148,8 +148,7 @@ public class HackLabService {
         List<HackLab> expiredLabs = hackLabRepository.findAllByExpiresAtBefore(LocalDateTime.now());
 
         for (HackLab lab : expiredLabs) {
-            String uniqueName = "lab-" + lab.getDevLab().getId() +
-                    "-hacker-" + lab.getHacker().getId();
+            String uniqueName = getUniqueName(lab);
 
             k3sService.deleteLab(uniqueName);
             hackLabRepository.delete(lab);
@@ -189,7 +188,7 @@ public class HackLabService {
             }
 
             // 2. [Live Log] 살아있거나(RUNNING) 뜨는 중(PENDING)이라면? -> K3s 연결
-            String uniqueName = "lab-" + hackLab.getDevLab().getId() + "-hacker-" + hackLab.getId();
+            String uniqueName = getUniqueName(hackLab);
             sendToEmitter(emitter, "시스템: 실시간 로그 연결 중...");
 
             k3sService.watchPodEvents(uniqueName, emitter);
