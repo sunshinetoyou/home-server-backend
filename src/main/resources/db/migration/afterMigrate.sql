@@ -15,7 +15,6 @@ INSERT INTO tag (name, category) VALUES
 	('RCE', 'VULNERABILITY');
 
 -- 3. 개발자 랩 (데모용)
-INSERT INTO dev_lab (developer_id, title, description, fe_image, be_image, public_url, is_active) VALUES
 INSERT INTO dev_lab (developer_id, title, description, fe_image, be_image, db_type, db_source, public_url, is_active)
 VALUES
 -- Case 1: 완성된 랩 (모든 정보 있음 -> Active 가능)
