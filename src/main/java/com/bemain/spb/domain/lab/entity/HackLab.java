@@ -33,6 +33,9 @@ public class HackLab extends BaseTimeEntity {
     @Column(nullable = false)
     private LabStatus status;
 
+    @Column(columnDefinition = "TEXT")
+    private String lastErrorLog;
+
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
 
@@ -46,7 +49,19 @@ public class HackLab extends BaseTimeEntity {
         this.hacker = hacker;
         this.assignedAt = LocalDateTime.now();
         this.expiresAt = expiresAt;
-        this.status = LabStatus.PENDING; // 생성 시 기본값
+        this.status = LabStatus.STOPPED; // 생성 시 기본값
+        this.lastErrorLog = null;
     }
 
+    // [Helper] 에러 상황 기록
+    public void markAsError(String errorMessage) {
+        this.status = LabStatus.ERROR;
+        this.lastErrorLog = errorMessage;
+    }
+
+    // [Helper] 재시작 시 초기화
+    public void prepareForStart() {
+        this.status = LabStatus.PENDING;
+        this.lastErrorLog = null; // 이전 에러 삭제
+    }
 }

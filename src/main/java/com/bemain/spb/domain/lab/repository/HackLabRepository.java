@@ -1,7 +1,9 @@
 package com.bemain.spb.domain.lab.repository;
 
+import com.bemain.spb.domain.lab.entity.DevLab;
 import com.bemain.spb.domain.lab.entity.HackLab;
 import com.bemain.spb.domain.lab.entity.LabStatus;
+import com.bemain.spb.domain.user.entity.User;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,4 +36,6 @@ public interface HackLabRepository extends JpaRepository<HackLab, Long> {
         List<HackLab> result = findRunningLabs(username, status, PageRequest.of(0, 1));
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
+
+    Optional<HackLab> findByHackerAndDevLab(User hacker, DevLab devLab);
 }

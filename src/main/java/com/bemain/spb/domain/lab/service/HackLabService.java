@@ -37,41 +37,45 @@ public class HackLabService {
         User hacker = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        // 이미 실행 중인 랩이 있는지 확인
-        hackLabRepository.findByHackerId(hacker.getId()).ifPresent(existingLab -> {
-            throw new IllegalStateException(
-                    "이미 실행 중인 실습(" + existingLab.getDevLab().getTitle() + ")이 있습니다. " +
-                            "먼저 종료(Stop) 후 새로운 실습을 시작해주세요."
-            );
-        });
-
         DevLab devLab = devLabRepository.findById(devLabId)
                 .orElseThrow(() -> new IllegalArgumentException("랩 없음"));
 
-        // DevLab 무결성 검사
-        if (!devLab.isActive()) {
-            throw new IllegalStateException("비활성화된 랩입니다.");
+        // 1. [Get-or-Create] 껍데기 확보 (핵심 로직 통합)
+        HackLab hackLab = hackLabRepository.findByHackerAndDevLab(hacker, devLab)
+                .orElseGet(() -> {
+                    // 없으면 새로 생성 (Shell 생성)
+                    HackLab newShell = HackLab.builder()
+                            .devLab(devLab)
+                            .hacker(hacker)
+                            .expiresAt(LocalDateTime.now().plusHours(1))
+                            .build();
+                    newShell.setStatus(LabStatus.STOPPED);
+                    return hackLabRepository.save(newShell);
+                });
+
+        // 2. 이미 실행 중인지 체크
+        if (hackLab.getStatus() == LabStatus.RUNNING) {
+            return new HackLabResponse(hackLab);
         }
-        if (!StringUtils.hasText(devLab.getFeImage()) || !StringUtils.hasText(devLab.getBeImage())) {
-            throw new IllegalStateException("해당 랩의 이미지 정보가 손상되었습니다. 관리자에게 문의하세요.");
+
+        // 3. 상태 초기화 (재시작 준비)
+        // 기존에 에러가 있었더라도, 재시도 하는 거니까 PENDING으로 변경하고 에러 로그 지움
+        hackLab.prepareForStart();
+
+        // 4. 배포 시도 (에러 발생 시 DB에 기록)
+        try {
+            // K3s 배포 요청 (리소스 생성 자체는 빠름)
+            String url = k3sService.deployHackLab(devLab, hackLab.getId());
+
+            // 성공 시 URL 세팅 (상태는 PENDING 유지 -> SSE/Polling으로 Running 확인)
+            hackLab.setUrl(url);
+
+        } catch (Exception e) {
+            hackLab.markAsError("배포 요청 실패: " + e.getMessage());
         }
 
-        HackLab hackLab = HackLab.builder()
-                .hacker(hacker)
-                .devLab(devLab)
-                .expiresAt(LocalDateTime.now())
-                .build();
-
-        // POD 생성 규칙
-        String uniqueName = "lab-" + devLabId + "-hacker-" + hacker.getId();
-        k3sService.deleteLab(uniqueName);
-
-        String accessUrl = k3sService.deployHackLab(devLab, hacker.getId());
-
-        hackLab.setUrl(accessUrl);
-        hackLab.setExpiresAt(LocalDateTime.now().plusHours(2));
-        hackLabRepository.save(hackLab);
-
+        // 5. 결과 리턴
+        // 프론트엔드는 이 응답의 ID를 가지고 바로 /logs SSE를 연결하면 됨
         return new HackLabResponse(hackLab);
     }
 
@@ -154,32 +158,44 @@ public class HackLabService {
         }
     }
 
-    @Async // 반드시 비동기로 실행되어야 함
+    @Async
     @Transactional(readOnly = true)
     public void streamLogs(Long hackLabId, String username, SseEmitter emitter) {
         try {
-            // 1. 엔티티 조회 (작성하신 HackLab 사용)
-            HackLab hackLab = hackLabRepository.findByHackerId(hackLabId)
-                    .orElseThrow(() -> new IllegalArgumentException("실습 정보를 찾을 수 없습니다."));
+            HackLab hackLab = hackLabRepository.findById(hackLabId).orElseThrow();
 
-            // 2. 권한 체크 (본인 랩인지 확인)
+            // 권한 체크
             if (!hackLab.getHacker().getUsername().equals(username)) {
                 sendErrorAndClose(emitter, "권한이 없습니다.");
                 return;
             }
 
-            // 3. 파드 이름 조합 (규칙: lab-{devLabId}-hacker-{hackLabId})
-            // DevLab 엔티티와의 연관관계를 이용
-            String uniqueName = getUniqueName(hackLab);
+            // 1. [Dead Log] 이미 에러로 죽어있는 상태라면? -> DB 기록 보여주고 끝냄
+            if (hackLab.getStatus() == LabStatus.ERROR) {
+                sendToEmitter(emitter, "❌ 이전 배포가 실패했습니다.");
+                sendToEmitter(emitter, "--- 저장된 에러 로그 ---");
 
-            // 4. 초기 메시지 전송
-            sendToEmitter(emitter, "시스템: 실습 환경(" + uniqueName + ") 로그 연결 중...");
+                String savedLog = hackLab.getLastErrorLog();
+                if (savedLog != null) {
+                    for (String line : savedLog.split("\n")) {
+                        sendToEmitter(emitter, line);
+                    }
+                } else {
+                    sendToEmitter(emitter, "저장된 상세 로그가 없습니다.");
+                }
 
-            // 5. K3s 감시 시작 (Blocking)
+                emitter.complete(); // 연결 종료
+                return;
+            }
+
+            // 2. [Live Log] 살아있거나(RUNNING) 뜨는 중(PENDING)이라면? -> K3s 연결
+            String uniqueName = "lab-" + hackLab.getDevLab().getId() + "-hacker-" + hackLab.getId();
+            sendToEmitter(emitter, "시스템: 실시간 로그 연결 중...");
+
             k3sService.watchPodEvents(uniqueName, emitter);
 
         } catch (Exception e) {
-            sendErrorAndClose(emitter, "로그 스트리밍 중 에러: " + e.getMessage());
+            sendErrorAndClose(emitter, "로그 스트리밍 에러: " + e.getMessage());
         }
     }
 
