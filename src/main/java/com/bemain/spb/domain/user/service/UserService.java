@@ -9,6 +9,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -24,11 +27,16 @@ public class UserService {
             throw new IllegalArgumentException("이미 존재하는 사용자명입니다.");
         }
 
+        // [New] 기본 설정값 생성
+        Map<String, Object> defaultSettings = new HashMap<>();
+        defaultSettings.put("darkMode", false);   // 다크모드 기본: 꺼짐
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword())) // 암호화 필수
                 .nickname(request.getNickname())
                 .role(request.getRole())
+                .settings(defaultSettings)
                 .build();
 
         return userRepository.save(user).getId();

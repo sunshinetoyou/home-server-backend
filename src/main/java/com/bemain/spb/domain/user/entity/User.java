@@ -2,9 +2,7 @@ package com.bemain.spb.domain.user.entity;
 
 import com.bemain.spb.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -13,8 +11,10 @@ import java.util.Map;
 
 @Entity
 @Getter
-@NoArgsConstructor
 @Table(name = "users")
+@Builder // 1. 빌더 패턴 사용
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // 2. JPA용 기본 생성자 (필수)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)  // 3. 빌더가 사용할 모든 필드 생성자 (필수)
 public class User extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +35,7 @@ public class User extends BaseTimeEntity {
     // JSONB 설정 (MySQL/Postgres 지원)
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
+    @Builder.Default
     private Map<String, Object> settings = new HashMap<>();
 
     @Builder
