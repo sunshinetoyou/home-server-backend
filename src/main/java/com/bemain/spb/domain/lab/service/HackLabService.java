@@ -91,7 +91,7 @@ public class HackLabService {
 
     // 3. 내 실습 상태 조회
     @Transactional(readOnly = true)
-    public HackLabResponse getMyStatus(Long devLabId, String username) {
+    public HackLabResponse getMyStatus(String username) {
         User hacker = userRepository.findByUsername(username).orElseThrow();
 
         return hackLabRepository.findByHackerId(hacker.getId())

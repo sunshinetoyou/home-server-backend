@@ -37,10 +37,9 @@ public class HackLabController {
     // 내 실습 상태 조회
     @GetMapping("/my-status")
     public ResponseEntity<HackLabResponse> getMyStatus(
-            @PathVariable Long id,
             @AuthenticationPrincipal UserDetails userDetails
     ) {
-        HackLabResponse status = hackLabService.getMyStatus(id, userDetails.getUsername());
+        HackLabResponse status = hackLabService.getMyStatus(userDetails.getUsername());
         if (status == null) {
             return ResponseEntity.noContent().build(); // 204 No Content (실습 중 아님)
         }
