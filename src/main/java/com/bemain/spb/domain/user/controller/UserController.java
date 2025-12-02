@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/profile")
+@RequestMapping("/api/v1/profile")
 @RequiredArgsConstructor
 public class UserController {
 
@@ -18,14 +18,14 @@ public class UserController {
 
     // 내 정보 조회
     @GetMapping
-    public ResponseEntity<ProfileResponse> getMe(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<ProfileResponse> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
         ProfileResponse response = userService.getMe(userDetails.getUsername());
         return ResponseEntity.ok(response);
     }
 
     // 내 정보 수정
     @PatchMapping
-    public ResponseEntity<String> updateMe(
+    public ResponseEntity<String> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody UserUpdateRequest request
     ) {
@@ -35,7 +35,7 @@ public class UserController {
 
     // 회원 탈퇴
     @DeleteMapping
-    public ResponseEntity<String> deleteMe(@AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<String> deleteAccount(@AuthenticationPrincipal UserDetails userDetails) {
         userService.deleteMe(userDetails.getUsername());
         return ResponseEntity.ok("계정이 삭제되었습니다.");
     }
