@@ -1,6 +1,7 @@
 package com.bemain.spb.domain.lab.service;
 
 import com.bemain.spb.domain.lab.entity.DevLab;
+import com.bemain.spb.domain.lab.entity.LabDbType;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -10,6 +11,8 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -19,8 +22,7 @@ public class K3sService {
     private final KubernetesClient k8sClient;
 
     /**
-     * [Public] 개발자 프리뷰(Honeypot) 배포
-     * - DevLab 등록 시 자동 호출
+     * 개발자 랩 (Honeypot) 배포
      * - 이름 규칙: lab-{id}-public
      */
     public String deployDevLab(DevLab devLab) {
@@ -29,7 +31,7 @@ public class K3sService {
     }
 
     /**
-     * 해커 실습 인스턴스 배포
+     * 해커 랩 배포
      * - 이름 규칙: lab-{id}-hacker-{uid}
      */
     public String deployHackLab(DevLab devLab, Long hackerId) {
@@ -65,70 +67,100 @@ public class K3sService {
     }
 
     private Deployment createDeploymentSpec(String name, DevLab lab) {
-        // 빌더 시작
-        DeploymentBuilder builder = new DeploymentBuilder()
-                .withNewMetadata().withName(name).withLabels(Map.of("app", name)).endMetadata();
 
-        // Pod Spec 구성
-        var podSpec = builder.withNewSpec()
-                .withReplicas(1)
-                .withNewSelector().withMatchLabels(Map.of("app", name)).endSelector()
-                .withNewTemplate()
-                .withNewMetadata().withLabels(Map.of("app", name)).endMetadata()
-                .withNewSpec();
-
-        // (옵션) Private Registry Secret 사용 시 주석 해제
-        // .withImagePullSecrets(new LocalObjectReference("lab-registry-secret"));
-
-        // [Container 1] Frontend
-        podSpec.addNewContainer()
+        // 1. Frontend 컨테이너 (항상 존재)
+        Container frontendContainer = new ContainerBuilder()
                 .withName("frontend")
-                .withImage(lab.getFeImage()) // DevLab 의존
+                .withImage(lab.getFeImage())
                 .withImagePullPolicy("Always")
-                .addNewPort().withContainerPort(80).endPort()
-                .addNewEnv().withName("BACKEND_URL").withValue("http://localhost:8080").endEnv()
-                .endContainer();
+                .withPorts(new ContainerPortBuilder().withContainerPort(80).build()) // 보통 FE는 80 or 3000
+                // FE가 같은 파드 내의 BE를 호출할 때 (localhost 사용 가능)
+                // 만약 Nginx로 서빙한다면 이 설정 대신 nginx.conf가 필요할 수 있음
+                .withEnv(new EnvVar("REACT_APP_API_URL", "http://localhost:8080", null))
+                .build();
 
-        // [Container 2] Backend
-        var backendContainer = podSpec.addNewContainer()
-                .withName("backend")
-                .withImage(lab.getBeImage()) // DevLab 의존
-                .withImagePullPolicy("Always")
-                .addNewPort().withContainerPort(8080).endPort();
+        // 2. Backend 컨테이너 빌더 준비 (환경변수가 달라지므로 빌더 상태로 시작)
+        List<EnvVar> backendEnv = new ArrayList<>();
+        // 기본 포트 설정
+        backendEnv.add(new EnvVar("SERVER_PORT", "8080", null));
 
-        // [Container 3] Database (조건부 생성)
-        if (lab.getDbImage() != null && !lab.getDbImage().isBlank()) {
-            // A. DB 이미지 모드 (3-Tier)
-            backendContainer
-                    .addNewEnv().withName("DB_URL").withValue("jdbc:postgresql://localhost:5432/labdb").endEnv()
-                    .addNewEnv().withName("DB_USER").withValue("hacker").endEnv()
-                    .addNewEnv().withName("DB_PASS").withValue("hacker").endEnv();
+        // ---------------------------------------------------------
+        // 🚀 DB 타입에 따른 로직 분기 (Polymorphic Logic)
+        // ---------------------------------------------------------
+        List<Container> containers = new ArrayList<>();
+        containers.add(frontendContainer); // FE 추가
 
-            backendContainer.endContainer(); // BE 닫기
+        if (lab.getDbType() == LabDbType.CONTAINER_IMAGE) {
+            // [Case A] 3-Tier: 별도 DB 컨테이너 띄우기
+//            log.info("Deploying 3-Tier Lab (Container DB): {}", name);
 
-            // DB 컨테이너 추가
-            podSpec.addNewContainer()
+            // 2-1. DB 컨테이너 추가
+            Container dbContainer = new ContainerBuilder()
                     .withName("database")
-                    .withImage(lab.getDbImage())
+                    .withImage(lab.getDbSource()) // 예: "postgres:15"
                     .withImagePullPolicy("Always")
-                    .addNewPort().withContainerPort(5432).endPort()
-                    .addNewEnv().withName("POSTGRES_DB").withValue("labdb").endEnv()
-                    .addNewEnv().withName("POSTGRES_USER").withValue("hacker").endEnv()
-                    .addNewEnv().withName("POSTGRES_PASSWORD").withValue("hacker").endEnv()
-                    .withNewResources()
-                    .withRequests(Map.of("memory", new Quantity("128Mi")))
-                    .withLimits(Map.of("memory", new Quantity("256Mi")))
-                    .endResources()
-                    .endContainer(); // DB 닫기
+                    .withPorts(new ContainerPortBuilder().withContainerPort(5432).build()) // 기본 포트 가정
+                    // DB 이미지에 따라 필요한 기본 환경변수 (예시: Postgres)
+                    .withEnv(new EnvVar("POSTGRES_PASSWORD", "lab_password", null),
+                            new EnvVar("POSTGRES_USER", "lab_user", null),
+                            new EnvVar("POSTGRES_DB", "lab_db", null))
+                    .build();
 
-        } else {
-            // B. SQLite 모드 (2-Tier)
-            backendContainer.addNewEnv().withName("DB_TYPE").withValue("sqlite").endEnv();
-            backendContainer.endContainer(); // BE 닫기
+            containers.add(dbContainer);
+
+            // 2-2. Backend에 DB 접속 정보 주입 (localhost로 접속!)
+            // 한 파드(Pod) 내의 컨테이너들은 localhost를 공유합니다.
+            backendEnv.add(new EnvVar("DB_URL", "jdbc:postgresql://localhost:5432/lab_db", null));
+            backendEnv.add(new EnvVar("DB_USERNAME", "lab_user", null));
+            backendEnv.add(new EnvVar("DB_PASSWORD", "lab_password", null));
+
+        } else if (lab.getDbType() == LabDbType.SQLITE_SCRIPT) {
+            // [Case B] 2-Tier: Backend 내부 SQLite + 초기화 스크립트 주입
+//            log.info("Deploying 2-Tier Lab (SQLite Script): {}", name);
+
+            // 2-1. DB 컨테이너는 추가하지 않음 (containers.add 안 함)
+
+            // 2-2. Backend에 스크립트 주입
+            backendEnv.add(new EnvVar("DB_TYPE", "sqlite", null));
+            // 주의: EnvVar 길이 제한이 있을 수 있으므로, 실제 운영에선 ConfigMap 마운트가 권장됨.
+            // 하지만 간단한 실습용 스크립트라면 Env로 충분함.
+            backendEnv.add(new EnvVar("DB_INIT_SQL", lab.getDbSource(), null));
         }
 
-        // 최종 빌드
-        return podSpec.endSpec().endTemplate().endSpec().build();
+        // 3. Backend 컨테이너 완성 및 추가
+        Container backendContainer = new ContainerBuilder()
+                .withName("backend")
+                .withImage(lab.getBeImage())
+                .withImagePullPolicy("Always")
+                .withPorts(new ContainerPortBuilder().withContainerPort(8080).build())
+                .withEnv(backendEnv) // 위에서 구성한 환경변수 주입
+                .build();
+
+        containers.add(backendContainer);
+
+        // ---------------------------------------------------------
+        // Deployment 객체 조립
+        // ---------------------------------------------------------
+        return new DeploymentBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .withLabels(Map.of("app", name)) // Label Selector용
+                .endMetadata()
+                .withNewSpec()
+                .withReplicas(1) // 랩은 기본 1개
+                .withNewSelector()
+                .withMatchLabels(Map.of("app", name))
+                .endSelector()
+                .withNewTemplate()
+                .withNewMetadata()
+                .withLabels(Map.of("app", name))
+                .endMetadata()
+                .withNewSpec()
+                .withContainers(containers) // FE + BE (+ DB)
+                .endSpec()
+                .endTemplate()
+                .endSpec()
+                .build();
     }
 
     private io.fabric8.kubernetes.api.model.Service createK8sService(String name) {

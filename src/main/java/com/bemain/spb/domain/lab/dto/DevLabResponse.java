@@ -1,6 +1,7 @@
 package com.bemain.spb.domain.lab.dto;
 
 import com.bemain.spb.domain.lab.entity.DevLab;
+import com.bemain.spb.domain.lab.entity.LabDbType;
 import com.bemain.spb.domain.tag.dto.TagResponse;
 import lombok.Getter;
 
@@ -17,7 +18,8 @@ public class DevLabResponse {
 
     private String feImage;
     private String beImage;
-    private String dbImage;
+    private LabDbType dbType; // CONTAINER_IMAGE or SQLITE_SCRIPT
+    private String dbSource;  // "postgres:15" or "CREATE TABLE..."
 
     private String publicUrl;
     private boolean isActive;
@@ -33,7 +35,8 @@ public class DevLabResponse {
 
         this.feImage = lab.getFeImage();
         this.beImage = lab.getBeImage();
-        this.dbImage = lab.getDbImage();
+        this.dbType = lab.getDbType();
+        this.dbSource = lab.getDbSource();
 
         this.publicUrl = lab.getPublicUrl();
         this.isActive = lab.isActive();

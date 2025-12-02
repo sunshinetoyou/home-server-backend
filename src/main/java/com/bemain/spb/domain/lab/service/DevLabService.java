@@ -1,9 +1,8 @@
 package com.bemain.spb.domain.lab.service;
 
-import com.bemain.spb.domain.lab.dto.DevLabCreateRequest;
-import com.bemain.spb.domain.lab.dto.DevLabListResponse;
-import com.bemain.spb.domain.lab.dto.DevLabResponse;
+import com.bemain.spb.domain.lab.dto.*;
 import com.bemain.spb.domain.lab.entity.DevLab;
+import com.bemain.spb.domain.lab.entity.LabDbType;
 import com.bemain.spb.domain.lab.repository.DevLabRepository;
 import com.bemain.spb.domain.tag.entity.Tag;
 import com.bemain.spb.domain.tag.repository.TagRepository;
@@ -27,27 +26,21 @@ public class DevLabService {
     private final TagRepository tagRepository;
     private final K3sService k3sService;
 
-    // 랩 등록 (DB 저장 + K8s 배포)
+    // 랩 등록
     @Transactional
     public Long createLab(String username, DevLabCreateRequest request) {
         User developer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        if (developer.getRole() != RoleType.DEVELOPER && developer.getRole() != RoleType.ADMIN) {
-            throw new IllegalArgumentException("개발자만 랩을 등록할 수 있습니다.");
-        }
-
-        // 필수 이미지 검증 로직
-        validateImages(request.getFeImage(), request.getBeImage());
-
-        // 1. 엔티티 생성
+        // 1. 엔티티 생성 (Draft 상태)
         DevLab lab = DevLab.builder()
                 .developer(developer)
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .feImage(request.getFeImage())
                 .beImage(request.getBeImage())
-                .dbImage(request.getDbImage())
+                .dbType(request.getDbType())
+                .dbSource(request.getDbSource())
                 .build();
 
         // 2. 태그 연결
@@ -56,48 +49,38 @@ public class DevLabService {
             lab.getTags().addAll(tags);
         }
 
-        lab = devLabRepository.save(lab); // ID 확보
+        // 3. 조건이 충족되면 자동으로 활성화 (Auto-Activate)
+        // create 때는 실패해도 에러 내지 않고 그냥 비활성 상태로 둠
+        if (canActivate(lab)) {
+            lab.setActive(true);
+        }
 
-        // 3. [변경] K3s 배포 (DevLab 객체 전달)
-        try {
-            // 변경된 K3sService 메소드 호출
-            String publicUrl = k3sService.deployDevLab(lab);
+        lab = devLabRepository.save(lab);
 
-            lab.setPublicUrl(publicUrl);
-
-        } catch (Exception e) {
-            System.err.println("Preview 배포 실패: " + e.getMessage());
-            // 필요 시 예외 throw
+        // 4. 활성화 상태라면 배포
+        if (lab.isActive()) {
+            try {
+                String publicUrl = k3sService.deployDevLab(lab);
+                lab.setPublicUrl(publicUrl);
+            } catch (Exception e) {
+                System.err.println("초기 배포 실패: " + e.getMessage());
+                lab.setActive(false);
+                lab.setPublicUrl(null);
+            }
         }
 
         return lab.getId();
     }
 
-    // [Helper] 이미지 유효성 검사
-    private void validateImages(String fe, String be) {
-        if (!StringUtils.hasText(fe)) {
-            throw new IllegalArgumentException("Frontend 이미지는 필수입니다.");
-        }
-        if (!StringUtils.hasText(be)) {
-            throw new IllegalArgumentException("Backend 이미지는 필수입니다.");
-        }
-        // DB 이미지는 없어도 됨 (SQLite 모드)
-    }
-
-    // 랩 목록 조회 (태그 필터링 지원)
+    // 랩 목록 조회
     @Transactional(readOnly = true)
     public List<DevLabListResponse> getLabs(String tagName) {
-        List<DevLab> labs;
-
         if (tagName != null && !tagName.isBlank()) {
-            labs = devLabRepository.findByTagName(tagName);
-        } else {
-            labs = devLabRepository.findAllByIsActiveTrueOrderByCreatedAtDesc();
+            return devLabRepository.findByTagName(tagName).stream()
+                    .map(DevLabListResponse::new).collect(Collectors.toList());
         }
-
-        return labs.stream()
-                .map(DevLabListResponse::new)
-                .collect(Collectors.toList());
+        return devLabRepository.findAllByIsActiveTrueOrderByCreatedAtDesc().stream()
+                .map(DevLabListResponse::new).collect(Collectors.toList());
     }
 
     // 랩 상세 조회
@@ -111,22 +94,126 @@ public class DevLabService {
     // 랩 삭제
     @Transactional
     public void deleteLab(Long labId, String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
-        DevLab lab = devLabRepository.findById(labId)
-                .orElseThrow(() -> new IllegalArgumentException("랩 없음"));
+        DevLab lab = validateAndGetLab(labId, username);
 
-        // 권한 체크 (작성자 본인 또는 관리자만 삭제 가능)
-        if (!lab.getDeveloper().getId().equals(user.getId()) && user.getRole() != RoleType.ADMIN) {
-            throw new IllegalArgumentException("삭제 권한이 없습니다.");
-        }
-
-        // 1. K3s 리소스(Preview Pod) 정리
-        // 생성할 때 규칙: "lab-" + lab.getId() + "-public"
+        // 1. K3s 리소스 정리
         String uniqueName = "lab-" + lab.getId() + "-public";
         k3sService.deleteLab(uniqueName);
 
-        // 2. DB 삭제 (Cascade 설정에 의해 Tag 연결 정보 등도 정리됨)
+        // 2. DB 삭제
         devLabRepository.delete(lab);
+    }
+
+    // 기본 정보 수정 (DB만 수정)
+    @Transactional
+    public void updateInfo(Long labId, String username, DevLabInfoUpdateRequest request) {
+        DevLab lab = validateAndGetLab(labId, username);
+
+        if (StringUtils.hasText(request.getTitle())) lab.setTitle(request.getTitle());
+        if (StringUtils.hasText(request.getDescription())) lab.setDescription(request.getDescription());
+
+        // 태그 업데이트
+        if (request.getTagIds() != null) {
+            lab.getTags().clear();
+            if (!request.getTagIds().isEmpty()) {
+                lab.getTags().addAll(tagRepository.findAllById(request.getTagIds()));
+            }
+        }
+    }
+
+    // 이미지 수정 (재배포 필요)
+    @Transactional
+    public void updateImages(Long labId, String username, DevLabImagesUpdateRequest request) {
+        DevLab lab = validateAndGetLab(labId, username);
+
+        boolean changed = false;
+        if (request.getFeImage() != null) { lab.setFeImage(request.getFeImage()); changed = true; }
+        if (request.getBeImage() != null) { lab.setBeImage(request.getBeImage()); changed = true; }
+        if (request.getDbType() != null) { lab.setDbType(request.getDbType()); changed = true; }
+        if (request.getDbSource() != null) { lab.setDbSource(request.getDbSource()); changed = true; }
+
+        // 변경사항이 있고 + 현재 활성화 상태라면 -> 조건을 다시 검사하고 재배포
+        if (changed && lab.isActive()) {
+            if (canActivate(lab)) {
+                redeployPublicLab(lab);
+            } else {
+                lab.setActive(false);
+                k3sService.deleteLab("lab-" + lab.getId() + "-public");
+                lab.setPublicUrl(null);
+            }
+        }
+    }
+
+    // 상태 변경 (활성화/비활성화)
+    @Transactional
+    public void updateStatus(Long labId, String username, DevLabStatusUpdateRequest request) {
+        DevLab lab = validateAndGetLab(labId, username);
+
+        if (request.getIsActive() != null && lab.isActive() != request.getIsActive()) {
+
+            if (request.getIsActive()) {
+                if (!canActivate(lab)) {
+                    throw new IllegalStateException("필수 이미지(FE/BE)와 테이블 구조(Schema) 설명이 모두 입력되어야 활성화할 수 있습니다.");
+                }
+
+                lab.setActive(true);
+                redeployPublicLab(lab);
+            }
+            else {
+                lab.setActive(false);
+                k3sService.deleteLab("lab-" + lab.getId() + "-public");
+                lab.setPublicUrl(null);
+            }
+        }
+    }
+
+    // ====== Helper Methods ======
+
+    // 검증 로직 (Boolean 반환)
+    private boolean canActivate(DevLab lab) {
+        // 1. 필수 이미지 체크
+        if (!StringUtils.hasText(lab.getFeImage()) || !StringUtils.hasText(lab.getBeImage())) {
+            return false;
+        }
+
+        // 2. DB 설정 필수
+        if (lab.getDbType() == null || !StringUtils.hasText(lab.getDbSource())) {
+            return false;
+        }
+
+        // 3. DB 타입별 간단한 정합성 체크 (선택 사항)
+        if (lab.getDbType() == LabDbType.CONTAINER_IMAGE) {
+            // 이미지 타입인데 SQL문("CREATE ...") 같은게 들어오면 안 됨 (줄바꿈 체크 등)
+            if (lab.getDbSource().trim().contains("\n") || lab.getDbSource().toUpperCase().startsWith("CREATE")) {
+                return false;
+            }
+        } else if (lab.getDbType() == LabDbType.SQLITE_SCRIPT) {
+            // TODO 입력값 검증 로직 필요
+            // SQL 스크립트인데 너무 짧으면 의심
+            if (lab.getDbSource().trim().length() < 5) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private DevLab validateAndGetLab(Long labId, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        DevLab lab = devLabRepository.findById(labId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 랩입니다."));
+
+        if (!lab.getDeveloper().getId().equals(user.getId()) && user.getRole() != RoleType.ADMIN) {
+            throw new IllegalArgumentException("해당 랩을 수정할 권한이 없습니다.");
+        }
+        return lab;
+    }
+
+    private void redeployPublicLab(DevLab lab) {
+        String uniqueName = "lab-" + lab.getId() + "-public";
+        k3sService.deleteLab(uniqueName); // 기존 삭제
+        String url = k3sService.deployDevLab(lab); // 신규 배포
+        lab.setPublicUrl(url);
     }
 }

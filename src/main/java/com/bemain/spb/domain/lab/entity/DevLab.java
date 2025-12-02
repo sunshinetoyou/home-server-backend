@@ -40,14 +40,18 @@ public class DevLab extends BaseTimeEntity {
     @Column(name = "be_image")
     private String beImage;
 
-    @Column(name = "db_image")
-    private String dbImage;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "db_type")
+    private LabDbType dbType;
+
+    @Column(columnDefinition = "TEXT")
+    private String dbSource;
 
     @Column(name = "public_url")
     private String publicUrl;
 
-    @Column(name = "is_active")
-    private boolean isActive = true;
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive;
 
     @LastModifiedDate
     private LocalDateTime modifiedAt;
@@ -62,13 +66,14 @@ public class DevLab extends BaseTimeEntity {
     private Set<Tag> tags = new HashSet<>();
 
     @Builder
-    public DevLab(User developer, String title, String description, String feImage, String beImage, String dbImage) {
+    public DevLab(User developer, String title, String description, String feImage, String beImage, LabDbType dbType, String dbSource) {
         this.developer = developer;
         this.title = title;
         this.description = description;
         this.feImage = feImage;
         this.beImage = beImage;
-        this.dbImage = dbImage;
-        this.isActive = true;
+        this.dbType = dbType;
+        this.dbSource = dbSource;
+        this.isActive = false;
     }
 }
