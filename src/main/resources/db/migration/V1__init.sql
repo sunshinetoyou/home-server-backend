@@ -26,10 +26,11 @@ CREATE TABLE dev_lab (
     -- 3-Tier Images
     fe_image VARCHAR(255),
     be_image VARCHAR(255),
-    db_image VARCHAR(255),
+    db_type VARCHAR(20),
+    db_source TEXT,
 
     public_url VARCHAR(255),
-    is_active BOOLEAN DEFAULT TRUE,
+    is_active BOOLEAN DEFAULT FALSE,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     modified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

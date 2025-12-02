@@ -16,9 +16,32 @@ INSERT INTO tag (name, category) VALUES
 
 -- 3. 개발자 랩 (데모용)
 INSERT INTO dev_lab (developer_id, title, description, fe_image, be_image, public_url, is_active) VALUES
-(1, 'SQL Injection Practice', '기초적인 SQL Injection 실습입니다.', 'nginx:latest', 'dvwa/dvwa', 'http://lab-1-public.server.io', true),
-(1, 'XSS Challenge', 'Cross Site Scripting 공격을 연습하세요.', 'nginx:latest', 'bwd/xss-lab', 'http://lab-2-public.server.io', true);
-
+INSERT INTO dev_lab (developer_id, title, description, fe_image, be_image, db_type, db_source, public_url, is_active)
+VALUES
+-- Case 1: 완성된 랩 (모든 정보 있음 -> Active 가능)
+(
+    1,
+    'SQL Injection Practice',
+    '완성된 실습 예제입니다.',
+    'ghcr.io/sunshinetoyou/home-server-frontend:latest',
+    'ghcr.io/sunshinetoyou/home-server-backend:latest',
+    'CONTAINER_IMAGE',
+    'postgres:15',
+    'http://lab-1-public.server.io',
+    true -- 활성화됨
+),
+-- Case 2: 작성 중인 랩 (이미지 없음 -> Inactive 고정)
+(
+    1,
+    'Draft Lab',
+    '아직 이미지를 준비 중인 랩입니다.',
+    NULL, -- [중요] 아직 입력 안 함
+    NULL,
+    NULL,
+    NULL,
+    NULL, -- URL 없음
+    false -- 비활성 상태
+);
 -- 4. 랩-태그 연결
 -- 1번 랩(SQLi)에 태그(4: SQL Injection, 1: Spring Boot) 연결 가정
 INSERT INTO lab_tag (lab_id, tag_id) VALUES
