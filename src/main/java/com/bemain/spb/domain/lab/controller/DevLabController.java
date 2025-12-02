@@ -96,6 +96,19 @@ public class DevLabController {
         return ResponseEntity.ok(message);
     }
 
+    // [New] 랩 배포하기
+    // POST /api/v1/labs/{id}/deploy
+    @PostMapping("/{id}/deploy")
+    public ResponseEntity<String> deployLab(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        devLabService.deployLab(id, userDetails.getUsername());
+
+        // SSE 로그를 보라는 힌트 메시지 전달 가능
+        return ResponseEntity.ok("배포가 시작되었습니다. 로그 창을 확인해주세요.");
+    }
+
     // DevLab 배포 로그 스트리밍
     @GetMapping(value = "/{id}/deploy-logs", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamDeployLogs(

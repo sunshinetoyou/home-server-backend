@@ -172,12 +172,40 @@ public class DevLabService {
         }
     }
 
+    // [New] 랩 명시적 배포 (Draft -> Active)
+    // POST /api/v1/labs/{id}/deploy
+    @Transactional
+    public void deployLab(Long labId, String username) {
+        // 1. 랩 조회 및 권한 체크
+        DevLab lab = validateAndGetLab(labId, username);
+
+        // 2. 배포 가능한 상태인지 검증 (이미지, DB설정 등)
+        if (!canActivate(lab)) {
+            throw new IllegalStateException("배포를 위한 필수 정보(이미지, DB설정 등)가 부족합니다.");
+        }
+
+        // 3. 상태 활성화
+        lab.setActive(true);
+
+        // 4. K3s 배포 (기존 redeploy 메소드 재활용)
+        redeployPublicLab(lab);
+    }
+
     @Async // 비동기 필수
     @Transactional(readOnly = true)
     public void streamDeployLogs(Long labId, String username, SseEmitter emitter) {
         try {
             // 1. 랩 조회 및 권한 체크 (기존 메서드 활용)
             DevLab lab = validateAndGetLab(labId, username);
+
+            // 2. [New] 활성화 상태(isActive) 검증
+            // 비활성(Draft) 상태라면 배포된 파드가 없으므로 로그를 볼 수 없음
+            if (!lab.isActive()) {
+                sendToEmitter(emitter, "⚠️ 현재 '작성 중(Draft)' 상태입니다.");
+                sendToEmitter(emitter, "⚠️ 랩을 '활성화'해야 배포가 시작됩니다.");
+                emitter.complete(); // 연결 종료
+                return;
+            }
 
             // 2. 파드 이름 규칙 (DevLab은 Public Preview임)
             // 규칙: "lab-" + lab.getId() + "-public"
@@ -245,5 +273,9 @@ public class DevLabService {
         k3sService.deleteLab(uniqueName); // 기존 삭제
         String url = k3sService.deployDevLab(lab); // 신규 배포
         lab.setPublicUrl(url);
+    }
+
+    private void sendToEmitter(SseEmitter emitter, String msg) throws IOException {
+        emitter.send(SseEmitter.event().name("log").data(msg));
     }
 }
