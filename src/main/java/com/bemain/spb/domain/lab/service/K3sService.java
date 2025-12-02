@@ -60,43 +60,63 @@ public class K3sService {
     }
 
     // 특정 파드의 이벤트를 실시간으로 감시하여 SSE로 전송
-    @Async
     public void watchPodEvents(String uniqueName, SseEmitter emitter) {
-        // 해당 라벨(app=uniqueName)을 가진 파드를 감시
+        // 1. 혹시 이미 실행 중인지 확인 (Fast Path)
+        // 사용자가 배포 끝나고 뒤늦게 로그창을 켰을 수도 있음
+        var currentPods = k8sClient.pods().inNamespace(namespace).withLabel("app", uniqueName).list().getItems();
+        if (!currentPods.isEmpty()) {
+            Pod pod = currentPods.get(0);
+            if ("Running".equals(pod.getStatus().getPhase())) {
+                try {
+                    sendLog(emitter, "✅ 이미 배포가 완료되어 실행 중입니다.");
+                    emitter.send(SseEmitter.event().name("complete").data("DONE"));
+                    emitter.complete();
+                    return;
+                } catch (IOException ignored) {}
+            }
+        }
+
+        // 2. 파드가 없거나 생성 중이라면 Watcher 시작
+        try {
+            sendLog(emitter, "K3s: 파드 생성 및 이벤트를 기다리는 중...");
+        } catch (IOException ignored) {}
+
         k8sClient.pods().inNamespace(namespace)
                 .withLabel("app", uniqueName)
                 .watch(new Watcher<Pod>() {
                     @Override
                     public void eventReceived(Action action, Pod pod) {
                         try {
-                            String phase = pod.getStatus().getPhase(); // Pending, Running, Failed...
+                            String phase = pod.getStatus().getPhase();
 
-                            // 1. 컨테이너 상태 상세 분석 (에러 감지)
+                            // [Deleted 이벤트 처리]
+                            // 재배포 시 기존 파드가 삭제될 때 로그가 찍힐 수 있음
+                            if (action == Action.DELETED) {
+                                sendLog(emitter, "♻️ 기존 파드 정리 중...");
+                                return;
+                            }
+
+                            // 1. 컨테이너 상태 상세 분석
                             if (pod.getStatus().getContainerStatuses() != null) {
                                 for (var cs : pod.getStatus().getContainerStatuses()) {
-
-                                    // 대기 중 (Waiting) - 이미지 에러 등
                                     if (cs.getState().getWaiting() != null) {
                                         String reason = cs.getState().getWaiting().getReason();
                                         String message = cs.getState().getWaiting().getMessage();
 
                                         if ("ErrImagePull".equals(reason) || "ImagePullBackOff".equals(reason)) {
                                             sendLog(emitter, "❌ 이미지 다운로드 실패: " + message);
-                                            emitter.complete(); // 종료
+                                            emitter.complete();
                                             return;
                                         }
                                         if (!"ContainerCreating".equals(reason)) {
                                             sendLog(emitter, "⏳ 대기 중: " + reason);
                                         }
                                     }
-
-                                    // 실행 중단 (Terminated) - 크래시
+                                    // 크래시 감지 로직 (기존 동일)
                                     if (cs.getState().getTerminated() != null) {
                                         String reason = cs.getState().getTerminated().getReason();
                                         if ("Error".equals(reason) || "CrashLoopBackOff".equals(reason)) {
-                                            sendLog(emitter, "❌ 앱 실행 중 오류 발생 (Crash)!");
-                                            // 앱 로그 20줄 긁어오기
-                                            fetchAndSendAppLogs(uniqueName, emitter);
+                                            sendLog(emitter, "❌ 앱 실행 중 오류(Crash) 발생!");
                                             emitter.complete();
                                             return;
                                         }
@@ -104,11 +124,19 @@ public class K3sService {
                                 }
                             }
 
-                            // 2. 정상 실행 완료
+                            // 2. Running 감지 -> 성공 처리
                             if ("Running".equals(phase)) {
-                                sendLog(emitter, "✅ 컨테이너 실행 완료. 접속 준비 중...");
-                                emitter.send(SseEmitter.event().name("complete").data("DONE"));
-                                emitter.complete();
+                                // 모든 컨테이너가 준비되었는지 확인 (Ready Check)
+                                boolean isReady = pod.getStatus().getContainerStatuses().stream()
+                                        .allMatch(cs -> Boolean.TRUE.equals(cs.getReady()));
+
+                                if (isReady) {
+                                    sendLog(emitter, "✅ 배포 완료! 서비스가 시작되었습니다.");
+                                    emitter.send(SseEmitter.event().name("complete").data("DONE"));
+                                    emitter.complete();
+                                } else {
+                                    sendLog(emitter, "🚀 컨테이너 실행 됨. 초기화 대기 중...");
+                                }
                             }
 
                         } catch (Exception e) {
@@ -118,7 +146,13 @@ public class K3sService {
 
                     @Override
                     public void onClose(WatcherException cause) {
-                        if (cause != null) emitter.completeWithError(cause);
+                        // Watcher가 끊겼을 때 (타임아웃 등)
+                        if (cause != null) {
+                            try {
+                                sendLog(emitter, "⚠️ 로그 연결이 끊겼습니다: " + cause.getMessage());
+                                emitter.completeWithError(cause);
+                            } catch (IOException ignored) {}
+                        }
                     }
                 });
     }
