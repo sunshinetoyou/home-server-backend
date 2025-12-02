@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface DevLabRepository extends JpaRepository<DevLab, Long> {
@@ -14,7 +15,8 @@ public interface DevLabRepository extends JpaRepository<DevLab, Long> {
 
     // 활성화된 모든 랩 조회 (최신순)
     List<DevLab> findAllByIsActiveTrueOrderByCreatedAtDesc();
-
+    // 모든 랩 조회
+    Collection<Object> findAllByOrderByCreatedAtDesc();
     // 태그 기반 랩 조회
     @Query("SELECT DISTINCT d FROM DevLab d JOIN d.tags t WHERE t.name = :tagName AND d.isActive = true")
     List<DevLab> findByTagName(@Param("tagName") String tagName);
