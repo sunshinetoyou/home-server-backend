@@ -54,4 +54,6 @@ public class User extends BaseTimeEntity {
     public void updateNickname(String nickname) {
         this.nickname = nickname;
     }
+
+    public void updateSettings(Map<String, Object> settings) { this.settings = settings; }
 }

@@ -67,32 +67,37 @@ public class UserService {
         return new ProfileResponse(user);
     }
 
-    // 내 정보 수정
+    // 일반 정보 수정 (닉네임, 세팅)
     @Transactional
-    public void updateMe(String username, UserUpdateRequest request) {
+    public void updateProfile(String username, UserProfileUpdateRequest request) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        // 닉네임 수정
-        if (request.getNickname() != null) {
+        if (request.getNickname() != null && !request.getNickname().equals(user.getNickname())) {
+            if (userRepository.existsByNickname(request.getNickname())) {
+                throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
+            }
             user.updateNickname(request.getNickname());
         }
 
-        // 설정 수정
+        // 2. [변경] 설정 변경 로직 (DTO -> Map 변환)
         if (request.getSettings() != null) {
-            user.getSettings().putAll(request.getSettings());
+            updateUserSettings(user, request.getSettings());
+        }
+    }
+
+
+    // 비밀번호 변경
+    @Transactional
+    public void updatePassword(String username, UserPwUpdateRequest request) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
         }
 
-        // 비밀번호 변경
-        if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
-            // 현재 비밀번호 검증
-            if (request.getCurrentPassword() == null ||
-                    !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-                throw new IllegalArgumentException("현재 비밀번호가 일치하지 않아 변경할 수 없습니다.");
-            }
-            // 2. 새 비밀번호 암호화 후 저장
-            user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
-        }
+        user.updatePassword(passwordEncoder.encode(request.getNewPassword()));
     }
 
     // 계정 삭제
@@ -102,5 +107,27 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
 
         userRepository.delete(user);
+    }
+
+    // ====== helper Method ======
+    // DTO의 값을 안전하게 Map으로 옮기는 헬퍼 메소드
+    private void updateUserSettings(User user, UserSettingsRequest newSettings) {
+        // 기존 DB에 저장된 Map 가져오기 (없으면 새거 생성)
+        Map<String, Object> currentSettings = user.getSettings();
+        if (currentSettings == null) {
+            currentSettings = new HashMap<>();
+        }
+
+        // 하나씩 검사해서 null이 아닐 때만 업데이트 (Partial Update)
+
+        if (newSettings.getDarkMode() != null) {
+            currentSettings.put("darkMode", newSettings.getDarkMode());
+        }
+
+        if (newSettings.getLanguage() != null) {
+            currentSettings.put("language", newSettings.getLanguage());
+        }
+
+        user.updateSettings(currentSettings);
     }
 }

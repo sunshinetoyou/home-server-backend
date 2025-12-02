@@ -1,7 +1,8 @@
 package com.bemain.spb.domain.user.controller;
 
 import com.bemain.spb.domain.user.dto.ProfileResponse;
-import com.bemain.spb.domain.user.dto.UserUpdateRequest;
+import com.bemain.spb.domain.user.dto.UserProfileUpdateRequest;
+import com.bemain.spb.domain.user.dto.UserPwUpdateRequest;
 import com.bemain.spb.domain.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,13 +25,24 @@ public class UserController {
     }
 
     // 내 정보 수정
-    @PatchMapping
+    // 일반 정보 수정
+    @PatchMapping("/info")
     public ResponseEntity<String> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody UserUpdateRequest request
+            @RequestBody UserProfileUpdateRequest request
     ) {
-        userService.updateMe(userDetails.getUsername(), request);
-        return ResponseEntity.ok("정보가 수정되었습니다.");
+        userService.updateProfile(userDetails.getUsername(), request);
+        return ResponseEntity.ok("프로필이 업데이트되었습니다.");
+    }
+
+    // 비밀번호 변경
+    @PutMapping("/pw")
+    public ResponseEntity<String> updatePassword(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody UserPwUpdateRequest request
+    ) {
+        userService.updatePassword(userDetails.getUsername(), request);
+        return ResponseEntity.ok("비밀번호가 변경되었습니다.");
     }
 
     // 회원 탈퇴
