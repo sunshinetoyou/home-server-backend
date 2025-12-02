@@ -52,7 +52,10 @@ CREATE TABLE hack_lab (
     id BIGSERIAL PRIMARY KEY,
     lab_id BIGINT NOT NULL,
     hacker_id BIGINT NOT NULL,
+
     url VARCHAR(255),
+    status VARCHAR(50),
+
     assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP NOT NULL,
