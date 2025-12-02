@@ -62,16 +62,12 @@ public class HackLabService {
                 .expiresAt(LocalDateTime.now())
                 .build();
 
-        // [중요] 기존 파드 정리 (Clean Start)
-        // 규칙: "lab-{devLabId}-hacker-{hackerId}"
+        // POD 생성 규칙
         String uniqueName = "lab-" + devLabId + "-hacker-" + hacker.getId();
         k3sService.deleteLab(uniqueName);
 
-        // [변경] K3s 배포 (DevLab 객체 + Hacker ID 전달)
-        // K3sService 내부에서 DevLab 설정을 보고 똑같이 파드를 띄워줌
         String accessUrl = k3sService.deployHackLab(devLab, hacker.getId());
 
-        // DB 업데이트
         hackLab.setUrl(accessUrl);
         hackLab.setExpiresAt(LocalDateTime.now().plusHours(2));
         hackLabRepository.save(hackLab);
@@ -109,8 +105,8 @@ public class HackLabService {
         }
 
         // 2. K3s 파드 상태 조회 (실시간 정보)
-        // 파드 이름 규칙: lab-{devLabId}-hacker-{hackLabId}
-        String uniqueName = "lab-" + hackLab.getDevLab().getId() + "-hacker-" + hackLab.getId();
+        // 파드 이름 규칙: lab-{devLabId}-hacker-{hacker_id}
+        String uniqueName = getUniqueName(hackLab);
 
         // K3sService에서 (Enum 상태, 상세 문자열) 쌍을 받아옴
         Pair<LabStatus, String> k3sInfo = k3sService.getPodDetailedStatus(uniqueName);
@@ -174,7 +170,7 @@ public class HackLabService {
 
             // 3. 파드 이름 조합 (규칙: lab-{devLabId}-hacker-{hackLabId})
             // DevLab 엔티티와의 연관관계를 이용
-            String uniqueName = "lab-" + hackLab.getDevLab().getId() + "-hacker-" + hackLab.getId();
+            String uniqueName = getUniqueName(hackLab);
 
             // 4. 초기 메시지 전송
             sendToEmitter(emitter, "시스템: 실습 환경(" + uniqueName + ") 로그 연결 중...");
@@ -197,5 +193,9 @@ public class HackLabService {
             emitter.send(SseEmitter.event().name("error").data(msg));
             emitter.completeWithError(new RuntimeException(msg));
         } catch (IOException ignored) {}
+    }
+
+    private String getUniqueName(HackLab hackLab) {
+        return "lab-" + hackLab.getDevLab().getId() + "-hacker-" + hackLab.getHacker().getId();
     }
 }

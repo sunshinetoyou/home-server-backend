@@ -38,7 +38,7 @@ VALUES
      'gcr.io/google-samples/hello-app:1.0',
      'SQLITE_SCRIPT',
      'CREATE TABLE test (id INT); INSERT INTO test VALUES (1);',
-     'http://lab-1-public.server.io', 
+     'http://lab-1-public.server.io',
      true
  );
 -- 4. 랩-태그 연결
