@@ -1,6 +1,7 @@
 package com.bemain.spb.domain.lab.dto;
 
 import com.bemain.spb.domain.lab.entity.HackLab;
+import com.bemain.spb.domain.lab.entity.LabStatus;
 import lombok.Getter;
 import java.time.LocalDateTime;
 
@@ -16,6 +17,7 @@ public class HackLabResponse {
         this.id = hackLab.getId();
         this.labTitle = hackLab.getDevLab().getTitle();
         this.accessUrl = hackLab.getUrl();
+
         this.expiresAt = hackLab.getExpiresAt();
 
         // 남은 시간 계산 (분 단위)

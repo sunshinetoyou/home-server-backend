@@ -5,10 +5,12 @@ import com.bemain.spb.domain.lab.service.DevLabService;
 import jakarta.validation.Valid; // [New] 유효성 검사
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 import java.util.Map;
@@ -92,5 +94,20 @@ public class DevLabController {
         devLabService.updateStatus(id, userDetails.getUsername(), request);
         String message = request.getIsActive() ? "랩이 활성화되었습니다. (배포 시작)" : "랩이 비활성화되었습니다.";
         return ResponseEntity.ok(message);
+    }
+
+    // DevLab 배포 로그 스트리밍
+    @GetMapping(value = "/{id}/deploy-logs", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter streamDeployLogs(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        // 배포는 보통 1~2분 걸리므로 타임아웃 3분 설정
+        SseEmitter emitter = new SseEmitter(3 * 60 * 1000L);
+
+        // 서비스 비동기 호출
+        devLabService.streamDeployLogs(id, userDetails.getUsername(), emitter);
+
+        return emitter;
     }
 }

@@ -10,10 +10,13 @@ import com.bemain.spb.domain.user.entity.RoleType;
 import com.bemain.spb.domain.user.entity.User;
 import com.bemain.spb.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -166,6 +169,31 @@ public class DevLabService {
                 k3sService.deleteLab("lab-" + lab.getId() + "-public");
                 lab.setPublicUrl(null);
             }
+        }
+    }
+
+    @Async // 비동기 필수
+    @Transactional(readOnly = true)
+    public void streamDeployLogs(Long labId, String username, SseEmitter emitter) {
+        try {
+            // 1. 랩 조회 및 권한 체크 (기존 메서드 활용)
+            DevLab lab = validateAndGetLab(labId, username);
+
+            // 2. 파드 이름 규칙 (DevLab은 Public Preview임)
+            // 규칙: "lab-" + lab.getId() + "-public"
+            String uniqueName = "lab-" + lab.getId() + "-public";
+
+            // 3. 초기 메시지
+            emitter.send(SseEmitter.event().name("log").data("시스템: [" + lab.getTitle() + "] 배포 로그 연결됨..."));
+
+            // 4. K3s 감시 시작 (이미 만들어둔 K3sService 재사용! 꿀이득 🍯)
+            k3sService.watchPodEvents(uniqueName, emitter);
+
+        } catch (Exception e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data("에러: " + e.getMessage()));
+                emitter.completeWithError(e);
+            } catch (IOException ignored) {}
         }
     }
 
