@@ -1,7 +1,4 @@
--- 1. 사용자 (비밀번호는 '1234'를 암호화한 값이라고 가정 - 실제론 BCrypt 해시 넣어야 함)
--- 편의상 테스트니까 plain text 넣고, SecurityConfig에서 NoOpPasswordEncoder 쓰거나
--- 온라인 BCrypt 생성기에서 '1234' 돌려서 넣으세요.
--- 예: $2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy
+-- 1. 사용자 (비밀번호는 '1234'를 암호화한 값이라고 가정)
 INSERT INTO users (username, password, nickname, role, settings) VALUES
 ('developer', '$2b$12$YJ099dVH9gEjm3Y3tUD8iOHIAChWQRICXc6xTsldsjH9pnTO27.5G', 'KimDev', 'DEVELOPER', '{"darkMode": true}'),
 ('hacker', '$2b$12$7/lNu0TfF2bOkWHT1k8lruEPcSMb9xQP5JFTvzgWmzSHC4ojMjFXO', 'LeeHacker', 'HACKER', '{"darkMode": false}'),
