@@ -51,7 +51,7 @@ public class SecurityConfig {
                         // 1. 공용 API (인증 불필요)
                         // [변경] /api/auth -> /api/v1/auth
                         .requestMatchers("/api/v1/auth/**", "/error", "/test").permitAll()
-                        .requestMatchers("/api/v1/tags/**", "/api/v1/labs", "/api/v1/reports/**").permitAll() // 조회는 누구나
+                        .requestMatchers("/api/v1/tags/**", "/api/v1/labs").permitAll() // 조회는 누구나
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 
                         // 2. 개발자 전용 (랩 등록, 수정, 삭제)
