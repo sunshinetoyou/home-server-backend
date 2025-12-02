@@ -159,7 +159,7 @@ public class HackLabService {
     public void streamLogs(Long hackLabId, String username, SseEmitter emitter) {
         try {
             // 1. 엔티티 조회 (작성하신 HackLab 사용)
-            HackLab hackLab = hackLabRepository.findById(hackLabId)
+            HackLab hackLab = hackLabRepository.findByHackerId(hackLabId)
                     .orElseThrow(() -> new IllegalArgumentException("실습 정보를 찾을 수 없습니다."));
 
             // 2. 권한 체크 (본인 랩인지 확인)
