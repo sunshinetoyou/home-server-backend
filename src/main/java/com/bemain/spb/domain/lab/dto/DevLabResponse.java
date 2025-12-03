@@ -23,8 +23,7 @@ public class DevLabResponse {
     private String dbSource;  // "postgres:15" or "CREATE TABLE..."
 
     private String publicUrl;
-    @JsonProperty("isActive")
-    private boolean isActive;
+    private Boolean isActive;
 
     private List<TagResponse> tags;
     private LocalDateTime createdAt;
