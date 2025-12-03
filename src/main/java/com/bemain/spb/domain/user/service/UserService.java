@@ -2,6 +2,7 @@ package com.bemain.spb.domain.user.service;
 
 import com.bemain.spb.domain.etc.jwt.JwtTokenProvider; // 기존에 만드신 Provider 경로 확인 필요
 import com.bemain.spb.domain.user.dto.*;
+import com.bemain.spb.domain.user.entity.RoleType;
 import com.bemain.spb.domain.user.entity.User;
 import com.bemain.spb.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,7 @@ public class UserService {
 
     // 로그인
     @Transactional
-    public TokenResponse login(UserLoginRequest request) {
+    public TokenResponse_front login(UserLoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
@@ -53,10 +54,16 @@ public class UserService {
         }
 
         // 토큰 생성 (AccessToken, RefreshToken)
-        String accessToken = jwtTokenProvider.createToken(user.getUsername(), user.getRole().name());
-        String refreshToken = ""; // 필요시 구현
+//        String accessToken = jwtTokenProvider.createToken(user.getUsername(), user.getRole().name());
+//        String refreshToken = ""; // 필요시 구현
 
-        return new TokenResponse(accessToken, refreshToken);
+        String token = jwtTokenProvider.createToken(user.getUsername(), user.getRole().name());
+        String username = user.getUsername();
+        String role = user.getRole().name();
+        String nickname = user.getNickname();
+
+//        return new TokenResponse_front(accessToken, refreshToken);
+        return new TokenResponse_front(token, username, role, nickname);
     }
 
     // 내 정보 조회
