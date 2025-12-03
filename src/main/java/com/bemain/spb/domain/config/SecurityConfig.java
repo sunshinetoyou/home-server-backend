@@ -75,7 +75,11 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // 프론트엔드 개발 시 localhost:3000 허용
-        configuration.setAllowedOrigins(List.of("http://192.168.0.9:3000"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",       // ★ 가장 중요! (브라우저 접속 주소)
+                "http://127.0.0.1:3000",       // 가끔 이걸로 접속될 때도 있음
+                "http://192.168.0.9:3000"      // 내부망 IP 접속용
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
