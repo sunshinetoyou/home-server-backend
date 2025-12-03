@@ -20,6 +20,7 @@ public class DevLabListResponse {
     private List<TagResponse> tags;
 
     public DevLabListResponse(DevLab lab) {
+        this.id = lab.getId();
         this.title = lab.getTitle();
         this.developerName = lab.getDeveloper().getNickname();
         this.feImage = lab.getFeImage();
