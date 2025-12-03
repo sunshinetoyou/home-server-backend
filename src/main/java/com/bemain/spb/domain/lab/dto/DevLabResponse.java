@@ -3,6 +3,7 @@ package com.bemain.spb.domain.lab.dto;
 import com.bemain.spb.domain.lab.entity.DevLab;
 import com.bemain.spb.domain.lab.entity.LabDbType;
 import com.bemain.spb.domain.tag.dto.TagResponse;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -22,6 +23,7 @@ public class DevLabResponse {
     private String dbSource;  // "postgres:15" or "CREATE TABLE..."
 
     private String publicUrl;
+    @JsonProperty("isActive")
     private boolean isActive;
 
     private List<TagResponse> tags;
