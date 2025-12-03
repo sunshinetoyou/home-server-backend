@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 @Getter
 public class DevLabListResponse {
+    private Long id;
     private String title;
     private String developerName;
 
