@@ -82,10 +82,10 @@ public class DevLabService {
             return devLabRepository.findByTagName(tagName).stream()
                     .map(DevLabListResponse::new).collect(Collectors.toList());
         }
-//        return devLabRepository.findAllByIsActiveTrueOrderByCreatedAtDesc().stream()
-//                .map(DevLabListResponse::new).collect(Collectors.toList());
-        return devLabRepository.findAllByOrderByCreatedAtDesc().stream()
+        return devLabRepository.findAllByIsActiveTrueOrderByCreatedAtDesc().stream()
                 .map(DevLabListResponse::new).collect(Collectors.toList());
+//        return devLabRepository.findAllByOrderByCreatedAtDesc().stream()
+//                .map(DevLabListResponse::new).collect(Collectors.toList());
     }
 
     // 랩 상세 조회
