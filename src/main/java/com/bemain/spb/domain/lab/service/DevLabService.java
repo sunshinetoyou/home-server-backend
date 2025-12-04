@@ -35,6 +35,10 @@ public class DevLabService {
         User developer = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
+        if (devLabRepository.findAllByDeveloperId(developer.getId()).size() > 3) {
+            throw new IllegalStateException("3개 이상 Lab 생성 금지");
+        }
+        
         // 1. 엔티티 생성 (Draft 상태)
         DevLab lab = DevLab.builder()
                 .developer(developer)
