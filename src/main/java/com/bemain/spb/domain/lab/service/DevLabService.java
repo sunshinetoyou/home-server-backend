@@ -196,30 +196,16 @@ public class DevLabService {
     }
 
     // [New] 랩 명시적 배포 (Draft -> Active)
-    // POST /api/v1/labs/{id}/deploy
-    @Transactional
     public void deployLab(Long labId, String username) {
-        // 1. 랩 조회 및 권한 체크
-        DevLab lab = validateAndGetLab(labId, username);
+        DevLab lab = startDeployment(labId, username);
 
-        // 2. 배포 가능한 상태인지 검증 (이미지, DB설정 등)
-        if (!canActivate(lab)) {
-            throw new IllegalStateException("배포를 위한 필수 정보(이미지, DB설정 등)가 부족합니다.");
-        }
-
-        String uniqueName = getUniqueName(lab);
-        redeployPublicLab(lab);
-
+        String uniqueName = getUniqueName(lab); // 이름 생성 로직
         try {
             k3sService.waitForPodRunning(uniqueName);
         } catch (Exception e) {
-            // 로그 남기고 예외 다시 던짐 (Controller로 전파)
-//            log.error("배포 검증 실패: {}", e.getMessage());
             throw new IllegalStateException("배포 실패: " + e.getMessage());
         }
-
-        // 3. 상태 활성화
-        lab.setActive(true);
+        completeDeployment(labId);
     }
 
     @Async // 비동기 필수
@@ -256,6 +242,20 @@ public class DevLabService {
         }
     }
 
+    @Transactional
+    public DevLab startDeployment(Long labId, String username) {
+        DevLab lab = validateAndGetLab(labId, username);
+        if (!canActivate(lab)) throw new IllegalStateException("배포를 위한 필수 정보(이미지, DB설정 등)가 부족합니다.");
+        redeployPublicLab(lab);
+
+        return lab;
+    }
+
+    @Transactional
+    public void completeDeployment(Long labId) {
+        DevLab lab = devLabRepository.findById(labId).orElseThrow();
+        lab.setActive(true);
+    }
     // ====== Helper Methods ======
 
     // 검증 로직 (Boolean 반환)

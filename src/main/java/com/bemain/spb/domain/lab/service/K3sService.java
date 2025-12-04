@@ -273,6 +273,8 @@ public class K3sService {
         // 30초가 지나도 안 켜지면 타임아웃
         throw new RuntimeException("배포 시간 초과 (30초 내에 실행되지 않음)");
     }
+
+
     // --- Private Helpers (공통 로직) ---
 
     private String deployCommonLab(String uniqueName, DevLab blueprint) {
