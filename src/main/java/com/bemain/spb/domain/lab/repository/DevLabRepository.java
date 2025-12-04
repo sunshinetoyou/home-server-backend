@@ -24,9 +24,7 @@ public interface DevLabRepository extends JpaRepository<DevLab, Long> {
     @Query("SELECT DISTINCT d FROM DevLab d JOIN d.tags t WHERE t.name = :tagName AND d.isActive = true")
     List<DevLab> findByTagName(@Param("tagName") String tagName);
 
-    @Query("SELECT d FROM DevLab d " +
-            "JOIN d.labTags lt " +
-            "JOIN lt.tag t " +
+    @Query("SELECT d FROM DevLab d JOIN d.tags t" +
             "WHERE d.developer.username = :username AND t.name = :tagName " +
             "ORDER BY d.createdAt DESC")
     List<DevLab> findByDeveloperAndTagName(@Param("username") String username, @Param("tagName") String tagName);
