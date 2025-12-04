@@ -17,6 +17,7 @@ public class DevLabListResponse {
     private String beImage;
     private LabDbType dbType;
 
+    private Boolean isActive;
     private List<TagResponse> tags;
 
     public DevLabListResponse(DevLab lab) {
@@ -26,6 +27,7 @@ public class DevLabListResponse {
         this.feImage = lab.getFeImage();
         this.beImage = lab.getBeImage();
         this.dbType = lab.getDbType();
+        this.isActive = lab.isActive();
         this.tags = lab.getTags().stream().map(TagResponse::new).collect(Collectors.toList());
     }
 }
