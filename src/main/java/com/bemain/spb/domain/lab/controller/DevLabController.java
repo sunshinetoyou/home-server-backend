@@ -45,6 +45,14 @@ public class DevLabController {
         return ResponseEntity.ok(devLabService.getLabs(tag));
     }
 
+    @GetMapping
+    public ResponseEntity<List<DevLabListResponse>> getMyLabs(
+            @RequestParam(required = false) String tag,
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return ResponseEntity.ok(devLabService.getMyLabs(tag, userDetails.getUsername()));
+    }
+
     // 랩 상세 조회
     @GetMapping("/{id}")
     public ResponseEntity<DevLabResponse> getLab(@PathVariable Long id) {

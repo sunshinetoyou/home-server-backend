@@ -17,8 +17,17 @@ public interface DevLabRepository extends JpaRepository<DevLab, Long> {
     List<DevLab> findAllByIsActiveTrueOrderByCreatedAtDesc();
     // 모든 랩 조회
     List<DevLab> findAllByOrderByCreatedAtDesc();
+    // 내 랩 조회
+    List<DevLab> findAllByDeveloper_UsernameOrderByCreatedAtDesc(String username);
 
     // 태그 기반 랩 조회
     @Query("SELECT DISTINCT d FROM DevLab d JOIN d.tags t WHERE t.name = :tagName AND d.isActive = true")
     List<DevLab> findByTagName(@Param("tagName") String tagName);
+
+    @Query("SELECT d FROM DevLab d " +
+            "JOIN d.labTags lt " +
+            "JOIN lt.tag t " +
+            "WHERE d.developer.username = :username AND t.name = :tagName " +
+            "ORDER BY d.createdAt DESC")
+    List<DevLab> findByDeveloperAndTagName(@Param("username") String username, @Param("tagName") String tagName);
 }

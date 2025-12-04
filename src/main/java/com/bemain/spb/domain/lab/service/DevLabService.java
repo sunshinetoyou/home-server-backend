@@ -92,6 +92,25 @@ public class DevLabService {
 //                .map(DevLabListResponse::new).collect(Collectors.toList());
     }
 
+    // 내 랩 목록 조회
+    @Transactional(readOnly = true)
+    public List<DevLabListResponse> getMyLabs(String tagName, String username) {
+
+        // 1. 태그가 있는 경우 -> 내 랩 + 태그 필터링
+        if (tagName != null && !tagName.isBlank()) {
+            return devLabRepository.findByDeveloperAndTagName(username, tagName).stream()
+                    .map(DevLabListResponse::new)
+                    .collect(Collectors.toList());
+        }
+
+        // 2. 태그가 없는 경우 -> 내 랩 전체 조회
+        // userRepository를 거치지 않고 바로 username으로 조회 (성능 이득)
+        return devLabRepository.findAllByDeveloper_UsernameOrderByCreatedAtDesc(username).stream()
+                .map(DevLabListResponse::new)
+                .collect(Collectors.toList());
+    }
+
+
     // 랩 상세 조회
     @Transactional(readOnly = true)
     public DevLabResponse getLab(Long labId) {
