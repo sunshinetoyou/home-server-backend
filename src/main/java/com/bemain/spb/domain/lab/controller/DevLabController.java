@@ -45,7 +45,7 @@ public class DevLabController {
         return ResponseEntity.ok(devLabService.getLabs(tag));
     }
 
-    @GetMapping
+    @GetMapping("/my")
     public ResponseEntity<List<DevLabListResponse>> getMyLabs(
             @RequestParam(required = false) String tag,
             @AuthenticationPrincipal UserDetails userDetails
