@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 public class DevLabListResponse {
     private Long id;
     private String title;
-    private String developerName;
+    private String author;
 
     private String feImage;
     private String beImage;
@@ -22,7 +22,7 @@ public class DevLabListResponse {
     public DevLabListResponse(DevLab lab) {
         this.id = lab.getId();
         this.title = lab.getTitle();
-        this.developerName = lab.getDeveloper().getNickname();
+        this.author = lab.getDeveloper().getNickname();
         this.feImage = lab.getFeImage();
         this.beImage = lab.getBeImage();
         this.dbType = lab.getDbType();
