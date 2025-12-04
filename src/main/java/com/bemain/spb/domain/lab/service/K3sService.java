@@ -229,6 +229,50 @@ public class K3sService {
             return Pair.of(LabStatus.ERROR, "Connection Error");
         }
     }
+
+    public void waitForPodRunning(String uniqueName) {
+        long timeoutMillis = 30 * 1000L; // 30초 대기
+        long startTime = System.currentTimeMillis();
+
+        while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            // 1. 파드 조회
+            List<Pod> pods = k8sClient.pods().inNamespace(namespace)
+                    .withLabel("app", uniqueName)
+                    .list().getItems();
+
+            if (!pods.isEmpty()) {
+                Pod pod = pods.get(0);
+                String phase = pod.getStatus().getPhase();
+
+                // 2. Running 상태 확인
+                if ("Running".equals(phase)) {
+                    // 컨테이너들이 진짜 준비됐는지(Ready Probe)까지 보면 더 좋음
+                    boolean isReady = pod.getStatus().getContainerStatuses().stream()
+                            .allMatch(cs -> Boolean.TRUE.equals(cs.getReady()));
+
+                    if (isReady) return; // 성공! (메서드 종료)
+                }
+
+                // 3. 명백한 에러 상태 확인 (즉시 실패 처리)
+                if (pod.getStatus().getContainerStatuses() != null) {
+                    for (var cs : pod.getStatus().getContainerStatuses()) {
+                        if (cs.getState().getWaiting() != null) {
+                            String reason = cs.getState().getWaiting().getReason();
+                            if ("ErrImagePull".equals(reason) || "ImagePullBackOff".equals(reason) || "CrashLoopBackOff".equals(reason)) {
+                                throw new RuntimeException("배포 실패: " + reason + " - " + cs.getState().getWaiting().getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 1초 대기 후 재시도
+            try { Thread.sleep(1000); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }
+
+        // 30초가 지나도 안 켜지면 타임아웃
+        throw new RuntimeException("배포 시간 초과 (30초 내에 실행되지 않음)");
+    }
     // --- Private Helpers (공통 로직) ---
 
     private String deployCommonLab(String uniqueName, DevLab blueprint) {

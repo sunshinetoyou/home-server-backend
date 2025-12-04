@@ -2,6 +2,7 @@ package com.bemain.spb.domain.lab.service;
 
 import com.bemain.spb.domain.lab.dto.*;
 import com.bemain.spb.domain.lab.entity.DevLab;
+import com.bemain.spb.domain.lab.entity.HackLab;
 import com.bemain.spb.domain.lab.entity.LabDbType;
 import com.bemain.spb.domain.lab.repository.DevLabRepository;
 import com.bemain.spb.domain.tag.entity.Tag;
@@ -38,7 +39,7 @@ public class DevLabService {
         if (devLabRepository.findAllByDeveloperId(developer.getId()).size() > 3) {
             throw new IllegalStateException("3개 이상 Lab 생성 금지");
         }
-        
+
         // 1. 엔티티 생성 (Draft 상태)
         DevLab lab = DevLab.builder()
                 .developer(developer)
@@ -57,7 +58,6 @@ public class DevLabService {
         }
 
         // 3. 조건이 충족되면 자동으로 활성화 (Auto-Activate)
-        // create 때는 실패해도 에러 내지 않고 그냥 비활성 상태로 둠
         if (canActivate(lab)) {
             lab.setActive(true);
         }
@@ -188,11 +188,19 @@ public class DevLabService {
             throw new IllegalStateException("배포를 위한 필수 정보(이미지, DB설정 등)가 부족합니다.");
         }
 
+        String uniqueName = getUniqueName(lab);
+        redeployPublicLab(lab);
+
+        try {
+            k3sService.waitForPodRunning(uniqueName);
+        } catch (Exception e) {
+            // 로그 남기고 예외 다시 던짐 (Controller로 전파)
+//            log.error("배포 검증 실패: {}", e.getMessage());
+            throw new IllegalStateException("배포 실패: " + e.getMessage());
+        }
+
         // 3. 상태 활성화
         lab.setActive(true);
-
-        // 4. K3s 배포 (기존 redeploy 메소드 재활용)
-        redeployPublicLab(lab);
     }
 
     @Async // 비동기 필수
@@ -281,5 +289,9 @@ public class DevLabService {
 
     private void sendToEmitter(SseEmitter emitter, String msg) throws IOException {
         emitter.send(SseEmitter.event().name("log").data(msg));
+    }
+
+    private String getUniqueName(DevLab devLab) {
+        return "lab-" + devLab.getId() + "-public";
     }
 }

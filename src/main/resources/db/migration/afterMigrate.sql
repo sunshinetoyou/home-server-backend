@@ -27,7 +27,7 @@ VALUES
     'CONTAINER_IMAGE',
     'postgres:15',
     'http://lab-1-public.server.io',
-    true -- 활성화됨
+    false -- 활성화됨
 ),
 -- Case 2: 작성 중인 랩 (이미지 없음 -> Inactive 고정)
 (
@@ -39,7 +39,7 @@ VALUES
      'SQLITE_SCRIPT',
      'CREATE TABLE test (id INT); INSERT INTO test VALUES (1);',
      'http://lab-1-public.server.io',
-     true
+     false
  );
 -- 4. 랩-태그 연결
 -- 1번 랩(SQLi)에 태그(4: SQL Injection, 1: Spring Boot) 연결 가정
