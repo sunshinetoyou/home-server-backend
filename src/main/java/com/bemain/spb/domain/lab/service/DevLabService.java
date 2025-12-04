@@ -205,7 +205,7 @@ public class DevLabService {
         } catch (Exception e) {
             throw new IllegalStateException("배포 실패: " + e.getMessage());
         }
-        completeDeployment(labId);
+        completeDeployment(lab.getId());
     }
 
     @Async // 비동기 필수
@@ -253,7 +253,9 @@ public class DevLabService {
 
     @Transactional
     public void completeDeployment(Long labId) {
-        DevLab lab = devLabRepository.findById(labId).orElseThrow();
+        DevLab lab = devLabRepository.findById(labId)
+                .orElseThrow(() -> new IllegalStateException("랩을 찾을 수 없습니다."));
+
         lab.setActive(true);
     }
     // ====== Helper Methods ======
